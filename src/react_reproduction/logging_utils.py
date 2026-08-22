@@ -34,6 +34,7 @@ def configure_logging(
     formatter = logging.Formatter(LOG_FORMAT, datefmt=DATE_FORMAT)
 
     if not quiet:
+        _enable_utf8_stdout()
         stream_handler = logging.StreamHandler(sys.stdout)
         stream_handler.setLevel(level)
         stream_handler.setFormatter(formatter)
@@ -55,3 +56,15 @@ def configure_logging(
         logger.addHandler(logging.NullHandler())
 
     return logger
+
+
+def _enable_utf8_stdout() -> None:
+    """Keep streamed Wikipedia observations printable on Windows and Colab."""
+    reconfigure = getattr(sys.stdout, "reconfigure", None)
+    if reconfigure is None:
+        return
+    try:
+        reconfigure(encoding="utf-8", errors="backslashreplace")
+    except (AttributeError, OSError, ValueError):
+        # Notebook/capture streams may expose reconfigure without supporting it.
+        return

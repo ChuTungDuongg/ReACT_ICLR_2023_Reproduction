@@ -1,26 +1,23 @@
-# Experiment Outputs
+# Runtime benchmark outputs
 
-This directory is reserved for generated benchmark runs. Runtime artifacts are
-ignored by Git; only this README and `.gitkeep` are version-controlled.
-
-The Sprint 1 runner currently produces:
+This directory contains generated runs and is ignored by Git except for this
+README and `.gitkeep`.
 
 ```text
-outputs/
-└── <task>/
-    └── <method>/
-        └── <UTC timestamp>/
-            ├── config.json
-            ├── metrics.json
-            └── predictions.jsonl
+outputs/<task>/<method>/<UTC timestamp>/
+├── config.json
+├── metrics.json
+├── predictions.jsonl
+├── trajectories.jsonl   # Act-only and ReAct
+└── run.log
 ```
 
-- `config.json` records the complete run configuration.
-- `predictions.jsonl` contains one flushed record per example.
-- `metrics.json` contains final aggregate metrics.
+- `config.json` records the complete run settings.
+- `predictions.jsonl` is appended and flushed after every example.
+- `trajectories.jsonl` records every model output, Thought, canonical Action,
+  and real Observation; it is also flushed per example.
+- `metrics.json` is written after successful aggregation.
+- `run.log` retains the output streamed live to the terminal/Colab cell.
 
-Later sprints will add `trajectories.jsonl`, `run.log`, and comparison reports.
-Do not place source code, manually maintained documentation, model weights, or
-credentials here.
-
-Human-facing generated project documents belong in `output/`, not `outputs/`.
+Do not commit run data, models, caches, datasets, credentials, or manually
+maintained documentation here. Stable documentation belongs in `output/`.

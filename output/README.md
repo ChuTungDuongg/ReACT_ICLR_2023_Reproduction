@@ -1,10 +1,7 @@
-# Project Documents
+# Project documents
 
-This directory contains stable, human-facing generated artifacts that may be
-committed and shared with the repository. It is intentionally separate from
-`outputs/`, which contains ignored benchmark runtime data.
-
-## Contents
+This directory contains stable, human-facing generated documents that can be
+committed and shared. It is separate from the ignored benchmark `outputs/`.
 
 ```text
 output/
@@ -12,9 +9,9 @@ output/
     └── react-reproduction-roadmap.pdf
 ```
 
-The roadmap PDF summarizes project requirements, architecture, sprint scope,
-acceptance criteria, current status, experiment artifacts, reproducibility,
-testing, and future extensions.
+The roadmap records sprint scope/status, architecture, dependencies, Colab
+commands, acceptance criteria, artifacts, testing, verified smoke results, and
+future work. It reflects completion through Sprint 4 only.
 
-Do not place benchmark predictions, caches, model weights, datasets, or secrets
+Do not place benchmark predictions, model weights, caches, datasets, or secrets
 in this directory.

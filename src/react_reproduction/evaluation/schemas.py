@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any, Mapping
 
+from react_reproduction.agents.base import TrajectoryStep
+
 
 @dataclass(frozen=True, slots=True)
 class PredictionRecord:
@@ -30,6 +32,26 @@ class PredictionRecord:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class TrajectoryRecord:
+    """One complete agent trajectory serialized independently per example."""
+
+    example_id: str
+    task: str
+    method: str
+    termination_reason: str
+    steps: tuple[TrajectoryStep, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "example_id": self.example_id,
+            "task": self.task,
+            "method": self.method,
+            "termination_reason": self.termination_reason,
+            "steps": [step.to_dict() for step in self.steps],
+        }
 
 
 @dataclass(frozen=True, slots=True)

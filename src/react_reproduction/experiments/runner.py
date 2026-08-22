@@ -9,37 +9,30 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Protocol, Sequence
 
+from react_reproduction.agents.base import AgentResult
 from react_reproduction.datasets.base import BenchmarkExample
 from react_reproduction.evaluation.metrics import (
     aggregate_hotpotqa_metrics,
     exact_match_score,
 )
-from react_reproduction.evaluation.schemas import BenchmarkMetrics, PredictionRecord
+from react_reproduction.evaluation.schemas import (
+    BenchmarkMetrics,
+    PredictionRecord,
+    TrajectoryRecord,
+)
 from react_reproduction.experiments.artifacts import (
     RunArtifacts,
     append_prediction,
+    append_trajectory,
     create_run_artifacts,
+    initialize_trajectories,
     write_config,
     write_metrics,
 )
 
 
-@dataclass(frozen=True, slots=True)
-class PredictorOutput:
-    """Task-neutral output returned by a model or test double."""
-
-    prediction: str
-    steps: int = 1
-    tool_calls: int = 0
-    termination_reason: str = "completed"
-
-    def __post_init__(self) -> None:
-        if self.steps < 0 or self.tool_calls < 0:
-            raise ValueError("steps and tool_calls cannot be negative.")
-
-
 class Predictor(Protocol):
-    def predict(self, example: BenchmarkExample) -> PredictorOutput: ...
+    def predict(self, example: BenchmarkExample) -> AgentResult: ...
 
 
 class MockPredictor:
@@ -54,12 +47,12 @@ class MockPredictor:
         self._predictions_by_id = dict(predictions_by_id)
         self._default_prediction = default_prediction
 
-    def predict(self, example: BenchmarkExample) -> PredictorOutput:
+    def predict(self, example: BenchmarkExample) -> AgentResult:
         prediction = self._predictions_by_id.get(
             example.example_id,
             self._default_prediction,
         )
-        return PredictorOutput(
+        return AgentResult(
             prediction=prediction,
             steps=1,
             tool_calls=0,
@@ -79,6 +72,7 @@ class BenchmarkRunConfig:
     seed: int
     generation: Mapping[str, Any]
     max_agent_steps: int
+    device: str = "auto"
     timestamp: str = field(default_factory=lambda: _utc_now().isoformat())
 
     def __post_init__(self) -> None:
@@ -109,6 +103,8 @@ def run_hotpotqa_benchmark(
     *,
     output_root: Path,
     logger: logging.Logger | None = None,
+    artifacts: RunArtifacts | None = None,
+    show_trajectories: bool = False,
 ) -> BenchmarkRunResult:
     """Evaluate a predictor and persist every prediction incrementally."""
     if config.task != "hotpotqa":
@@ -120,13 +116,16 @@ def run_hotpotqa_benchmark(
         )
 
     active_logger = logger or logging.getLogger("react_reproduction.experiments")
-    artifacts = create_run_artifacts(
+    active_artifacts = artifacts or create_run_artifacts(
         output_root,
         task=config.task,
         method=config.method,
         timestamp=config.timestamp,
     )
-    write_config(artifacts, config.to_dict())
+    write_config(active_artifacts, config.to_dict())
+    persist_trajectories = config.method in {"act", "react"}
+    if persist_trajectories:
+        initialize_trajectories(active_artifacts)
 
     run_started = time.perf_counter()
     prediction_records: list[PredictionRecord] = []
@@ -153,24 +152,53 @@ def run_hotpotqa_benchmark(
             latency=latency,
         )
         prediction_records.append(record)
-        append_prediction(artifacts, record)
+        append_prediction(active_artifacts, record)
+        if persist_trajectories:
+            append_trajectory(
+                active_artifacts,
+                TrajectoryRecord(
+                    example_id=example.example_id,
+                    task=config.task,
+                    method=config.method,
+                    termination_reason=output.termination_reason,
+                    steps=output.trajectory,
+                ),
+            )
 
         active_logger.info(
-            "[%d/%d] example_id=%s correct=%s running_em=%.2f%%",
+            "[%d/%d] example_id=%s",
             index,
             len(examples),
             example.example_id,
+        )
+        if show_trajectories:
+            for step in output.trajectory:
+                active_logger.info("Step %d", step.step_index)
+                if step.thought:
+                    active_logger.info("Thought: %s", step.thought)
+                if step.action:
+                    active_logger.info("Action: %s", step.action)
+                if step.observation:
+                    active_logger.info("Observation: %s", step.observation)
+                active_logger.info("Model output: %s", step.model_output)
+        active_logger.info("Prediction: %s", output.prediction)
+        active_logger.info("Gold: %s", example.gold_answer)
+        active_logger.info(
+            "Correct: %s | Running EM: %.2f%% | Steps: %d | Tool calls: %d | Latency: %.3fs",
             correct,
             100.0 * running_correct / index,
+            output.steps,
+            output.tool_calls,
+            latency,
         )
 
     runtime = time.perf_counter() - run_started
     metrics = aggregate_hotpotqa_metrics(prediction_records, runtime=runtime)
-    write_metrics(artifacts, metrics)
+    write_metrics(active_artifacts, metrics)
     return BenchmarkRunResult(
         metrics=metrics,
         predictions=tuple(prediction_records),
-        artifacts=artifacts,
+        artifacts=active_artifacts,
     )
 
 

@@ -9,7 +9,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
-from react_reproduction.evaluation.schemas import BenchmarkMetrics, PredictionRecord
+from react_reproduction.evaluation.schemas import (
+    BenchmarkMetrics,
+    PredictionRecord,
+    TrajectoryRecord,
+)
 
 
 _SAFE_COMPONENT = re.compile(r"[A-Za-z0-9_.-]+")
@@ -23,6 +27,8 @@ class RunArtifacts:
     config_path: Path
     metrics_path: Path
     predictions_path: Path
+    trajectories_path: Path
+    run_log_path: Path
 
 
 def create_run_artifacts(
@@ -48,6 +54,8 @@ def create_run_artifacts(
         config_path=run_directory / "config.json",
         metrics_path=run_directory / "metrics.json",
         predictions_path=predictions_path,
+        trajectories_path=run_directory / "trajectories.jsonl",
+        run_log_path=run_directory / "run.log",
     )
 
 
@@ -57,6 +65,18 @@ def write_config(artifacts: RunArtifacts, config: Mapping[str, Any]) -> None:
 
 def append_prediction(artifacts: RunArtifacts, record: PredictionRecord) -> None:
     with artifacts.predictions_path.open("a", encoding="utf-8", newline="\n") as file:
+        json.dump(record.to_dict(), file, ensure_ascii=False)
+        file.write("\n")
+        file.flush()
+
+
+def initialize_trajectories(artifacts: RunArtifacts) -> None:
+    """Create the trajectory stream before an interactive benchmark begins."""
+    artifacts.trajectories_path.touch(exist_ok=False)
+
+
+def append_trajectory(artifacts: RunArtifacts, record: TrajectoryRecord) -> None:
+    with artifacts.trajectories_path.open("a", encoding="utf-8", newline="\n") as file:
         json.dump(record.to_dict(), file, ensure_ascii=False)
         file.write("\n")
         file.flush()

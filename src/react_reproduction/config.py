@@ -31,6 +31,14 @@ class GenerationConfig:
     top_p: float = 1.0
     max_new_tokens: int = 256
 
+    def __post_init__(self) -> None:
+        if self.temperature < 0.0:
+            raise ValueError("generation.temperature cannot be negative.")
+        if not 0.0 <= self.top_p <= 1.0:
+            raise ValueError("generation.top_p must be between 0.0 and 1.0.")
+        if self.max_new_tokens <= 0:
+            raise ValueError("generation.max_new_tokens must be positive.")
+
 
 @dataclass(frozen=True, slots=True)
 class HotpotQAConfig:
@@ -112,11 +120,6 @@ def load_project_config(config_path: Path, *, project_root: Path) -> ProjectConf
             generation_data.get("max_new_tokens", 256), "max_new_tokens"
         ),
     )
-    if not 0.0 <= generation.top_p <= 1.0:
-        raise ValueError("generation.top_p must be between 0.0 and 1.0.")
-    if generation.temperature < 0.0:
-        raise ValueError("generation.temperature cannot be negative.")
-
     return ProjectConfig(
         project_name=project_name,
         output_dir=_resolve_path(Path(output_value), root),

@@ -1,28 +1,31 @@
-# Source Code
+# Source code
 
-This directory uses the standard Python `src` layout. The application package
-is `react_reproduction`, and `main.py` adds this directory to the import path so
-the project works immediately after a clone and dependency installation.
+This directory uses the standard Python `src` layout. `main.py` adds `src/` to
+the import path, so a fresh clone works without installing the project as a
+package.
 
 ## Package map
 
-| Package/module | Responsibility | Status |
-|---|---|---|
-| `config.py` | Typed YAML/environment configuration | Implemented |
-| `logging_utils.py` | Terminal and optional file logging | Implemented |
-| `cli.py` | Public command-line interface | Bootstrap implemented |
-| `datasets/` | Shared examples and dataset loaders | HotpotQA implemented |
-| `evaluation/` | Normalization, Exact Match, result schemas | Implemented |
-| `experiments/` | Run orchestration and artifact persistence | Mock runner implemented |
-| `llm/` | Model-provider abstraction | Planned for Sprint 2 |
-| `agents/` | Standard, CoT, Act-only, and ReAct agents | Planned for Sprints 2-4 |
-| `prompts/` | Task- and method-specific prompts | Planned for Sprint 2 onward |
-| `tools/` | Wikipedia environment | Planned for Sprint 3 |
+| Path | Responsibility |
+|---|---|
+| `react_reproduction/cli.py` | Parses `doctor`/`benchmark`, resolves overrides, and wires model, agent, environment, and runner. |
+| `react_reproduction/config.py` | Loads and validates YAML defaults plus supported environment overrides. |
+| `react_reproduction/logging_utils.py` | Streams UTF-8 logs to stdout and duplicates benchmark logs to `run.log`. |
+| `react_reproduction/datasets/` | Defines `BenchmarkExample` and deterministic HotpotQA loading/sampling. |
+| `react_reproduction/llm/` | Defines the provider interface and lazy Hugging Face implementation with automatic device/dtype selection. |
+| `react_reproduction/prompts/` | Builds HotpotQA prompts for Standard, CoT, Act-only, and ReAct. |
+| `react_reproduction/agents/` | Contains result/trajectory contracts, output parsers, and all four agent implementations. |
+| `react_reproduction/tools/` | Calls MediaWiki and owns Search/Lookup/Finish state, ambiguity, loop, and max-step behavior. |
+| `react_reproduction/evaluation/` | Normalizes answers, computes Exact Match, and defines JSON-ready records. |
+| `react_reproduction/experiments/` | Runs examples and incrementally persists predictions, trajectories, metrics, config, and logs. |
 
-## Development rules
+## Data flow
 
-- Keep the core ReAct loop framework-free and inspectable.
-- Reuse shared schemas and runners across tasks.
-- Keep model downloads and network calls out of module import time.
-- Preserve deterministic behavior when a seed is provided.
-- Add implementation only in the sprint that owns it.
+```text
+CLI → HotpotQA → Hugging Face model → agent
+                              Act/ReAct ↕ Wikipedia
+    → evaluator → outputs/<task>/<method>/<timestamp>/
+```
+
+The implementation is complete through Sprint 4. Keep model/network work lazy,
+keep the core loops framework-free, and preserve deterministic seeded behavior.

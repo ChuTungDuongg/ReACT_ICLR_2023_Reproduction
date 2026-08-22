@@ -1,29 +1,29 @@
 # Tests
 
-The test suite validates research infrastructure without downloading a large
-language model. Tests should be deterministic, fast, and runnable on Windows,
-Linux, and Google Colab.
+The 36-test suite is deterministic and does not download a model or call live
+Wikipedia. Scripted LLMs, injected datasets, and a fake Wikipedia client cover
+the same control flow used by real runs.
 
-Run all tests from the repository root:
+Run from the repository root:
 
 ```bash
-pytest
+python -m pytest -q
 ```
 
-## Current coverage
+## Coverage by file
 
-- `test_smoke.py`: CLI help, project configuration, and `doctor` output.
-- `test_metrics.py`: HotpotQA normalization and Exact Match.
-- `test_hotpotqa.py`: deterministic sampling, loader arguments, metadata, and
-  sample-size validation using in-memory data.
-- `test_experiment_serialization.py`: end-to-end mock runner, run directory,
-  config, predictions, and metrics serialization.
-- `conftest.py`: makes the `src` package importable after a plain clone.
+| File | What it verifies |
+|---|---|
+| `test_smoke.py` | CLI help, configuration, and `doctor`. |
+| `test_hotpotqa.py` | Seeded sampling, metadata, loader arguments, validation. |
+| `test_metrics.py` | HotpotQA normalization and Exact Match. |
+| `test_parsing.py` | Standard/CoT answer and reasoning parsing. |
+| `test_standard_cot_agents.py` | Closed-book agent prompts/results. |
+| `test_action_parsing.py` | Search/Lookup/Finish and ReAct Thought/Action parsing, including format drift. |
+| `test_wikipedia.py` | Search, current article, repeated Lookup, missing pages, loops, and max steps. |
+| `test_act_agent.py` | Act-only loop and parse recovery. |
+| `test_react_agent.py` | Thought/Action/Observation loop, history, recovery, and termination. |
+| `test_experiment_serialization.py` | Config, metrics, flushed prediction records, and flushed trajectories. |
 
-## Rules
-
-- Do not require model downloads in unit tests.
-- Inject dataset/model doubles instead of relying on network availability.
-- Write temporary test artifacts only under the project `outputs/` directory
-  and remove the exact verified test directory afterward.
-- Add parser, loop, tool, and trajectory tests in their owning sprints.
+Temporary test outputs are created only under `outputs/`, their resolved parent
+is checked, and the exact temporary directory is removed afterward.

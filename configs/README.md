@@ -1,27 +1,15 @@
 # Configuration
 
-This directory contains version-controlled defaults for reproducible
-experiments. Configuration must describe an experiment; it must not contain
-credentials, downloaded data, model weights, or generated results.
+`default.yaml` contains version-controlled experiment defaults:
 
-## `default.yaml`
+- HotpotQA dataset `hotpotqa/hotpot_qa`, `distractor`, `validation`;
+- sample count, seed, and maximum agent steps;
+- generation temperature, top-p, and maximum new tokens;
+- output directory and live log level.
 
-The default configuration currently defines:
+`src/react_reproduction/config.py` validates every value and resolves relative
+paths from the repository root. CLI flags override run-specific values.
+`REACT_OUTPUT_DIR` and `REACT_LOG_LEVEL` can override their YAML equivalents.
 
-- project name, output directory, and log level;
-- the official HotpotQA dataset name, subset, and split;
-- sample count, random seed, and future maximum agent steps;
-- generation defaults such as temperature, top-p, and maximum new tokens.
-
-The loader in `src/react_reproduction/config.py` validates these values and
-resolves relative paths against the repository root. `REACT_OUTPUT_DIR` and
-`REACT_LOG_LEVEL` can override their YAML equivalents. Model and run-specific
-CLI overrides will be connected to benchmark execution in Sprint 2.
-
-## Rules
-
-- Keep defaults small enough for a smoke run.
-- Keep dataset/model identifiers in configuration rather than duplicating them
-  across modules.
-- Never commit tokens or machine-specific absolute paths.
-- Add new task sections only in the sprint that implements the task.
+Do not store Hugging Face tokens, model weights, downloaded data, or generated
+results here. Use `.env` for local secrets; it is ignored by Git.
