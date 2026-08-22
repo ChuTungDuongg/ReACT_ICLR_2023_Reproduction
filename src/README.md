@@ -1,5 +1,7 @@
 # Source code
 
+> 🌐 **Language:** English | [Tiếng Việt](README.vi.md)
+
 This directory uses the standard Python `src` layout. `main.py` adds `src/` to
 the import path, so a fresh clone works without installing the project as a
 package.

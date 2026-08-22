@@ -1,5 +1,7 @@
 # Project documents
 
+> 🌐 **Language:** English | [Tiếng Việt](README.vi.md)
+
 This directory contains stable, human-facing generated documents that can be
 committed and shared. It is separate from the ignored benchmark `outputs/`.
 

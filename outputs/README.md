@@ -1,5 +1,7 @@
 # Runtime benchmark outputs
 
+> 🌐 **Language:** English | [Tiếng Việt](README.vi.md)
+
 This directory contains generated runs and is ignored by Git except for this
 README and `.gitkeep`.
 

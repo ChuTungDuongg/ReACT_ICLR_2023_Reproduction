@@ -1,5 +1,7 @@
 # Configuration
 
+> 🌐 **Language:** English | [Tiếng Việt](README.vi.md)
+
 `default.yaml` contains version-controlled experiment defaults:
 
 - HotpotQA dataset `hotpotqa/hotpot_qa`, `distractor`, `validation`;

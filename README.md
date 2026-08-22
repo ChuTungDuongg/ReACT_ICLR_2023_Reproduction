@@ -1,5 +1,7 @@
 # 🧠 ReAct Paper Reproduction
 
+> 🌐 **Language:** English | [Tiếng Việt](README.vi.md)
+
 <p align="center">
   <img src="https://img.shields.io/badge/Paper-ICLR%202023-6f42c1" alt="ICLR 2023 paper">
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10+">
