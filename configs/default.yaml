@@ -1,0 +1,13 @@
+project_name: react-paper-reproduction
+output_dir: outputs
+log_level: INFO
+
+benchmark:
+  num_samples: 10
+  seed: 42
+  max_agent_steps: 7
+
+generation:
+  temperature: 0.0
+  top_p: 1.0
+  max_new_tokens: 256
