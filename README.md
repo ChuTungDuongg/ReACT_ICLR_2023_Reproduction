@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/Paper-ICLR%202023-6f42c1" alt="ICLR 2023 paper">
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Status-Sprint%204%20Complete-238636" alt="Sprint 4 complete">
-  <img src="https://img.shields.io/badge/Tests-36%20Passing-18A0AE" alt="36 tests passing">
+  <img src="https://img.shields.io/badge/Tests-40%20Passing-18A0AE" alt="40 tests passing">
   <img src="https://img.shields.io/badge/Interface-main.py-102A43" alt="CLI first">
 </p>
 
@@ -91,6 +91,29 @@ Then run the requested five-sample benchmark:
     --show-trajectories
 ```
 
+### Sprint 4 HotpotQA notes for Colab
+
+- `--num-samples` is the total number of examples, not a batch size. Sprint 4
+  inference is sequential; the model is loaded once and reused for every
+  example.
+- The configured `hotpotqa/hotpot_qa`, `distractor`, `validation` split contains
+  **7,405 examples**. The valid range is therefore `1-7405`; a larger request
+  stops with a validation error.
+- Use 5 examples for a smoke test, 20-50 for prompt/failure inspection, and only
+  start 100/500+ runs after validating runtime and MediaWiki reliability.
+- Do not add `--quiet` when running in Colab. Per-example answer/supporting-fact/
+  joint metrics, all 12 final official HotpotQA metrics, and operational metrics
+  are streamed to the cell and copied to `run.log`.
+- `metrics.json` contains answer `EM/F1/precision/recall`, supporting-fact
+  `SP EM/F1/precision/recall`, joint `EM/F1/precision/recall`, evidence coverage,
+  runtime, average steps/tools, and termination reasons.
+- The formulas mirror the
+  [official HotpotQA evaluator](https://github.com/hotpotqa/hotpot/blob/master/hotpot_evaluate_v1.py).
+- Sprint 4 agents currently return answers but do not emit HotpotQA
+  `(title, sentence_id)` evidence pairs. The official evaluator therefore scores
+  an empty supporting-fact prediction (SP/joint scores are normally zero) and
+  reports evidence coverage explicitly; it never invents evidence.
+
 Optionally set `HF_TOKEN` in the Colab environment before the run to receive
 higher Hugging Face Hub rate limits. The command streams progress and every
 Thought/Action/Observation to stdout while also writing `run.log`.
@@ -161,7 +184,7 @@ main.py
   → HuggingFaceProvider (CUDA/CPU/MPS auto-detection)
   → selected agent
       └─ Act/ReAct → WikipediaEnvironment → MediaWiki API
-  → Exact Match evaluator
+  → official HotpotQA answer/supporting-fact/joint evaluator
   → flushed JSONL + JSON + live/file logs
 ```
 
@@ -181,7 +204,7 @@ main.py
 ├── src/react_reproduction/
 │   ├── agents/                     # Standard, CoT, Act-only, ReAct loops/parsers
 │   ├── datasets/                   # Shared example + HotpotQA loader
-│   ├── evaluation/                 # Exact Match + serializable schemas
+│   ├── evaluation/                 # Full official metrics + serializable schemas
 │   ├── experiments/                # Run orchestration and artifact writers
 │   ├── llm/                        # Provider contract + Hugging Face backend
 │   ├── prompts/                    # HotpotQA prompt builders
@@ -189,7 +212,7 @@ main.py
 │   ├── cli.py                      # Argument parsing and dependency wiring
 │   ├── config.py                   # Typed YAML/environment configuration
 │   └── logging_utils.py            # UTF-8 live stdout + run.log
-└── tests/                           # 36 deterministic tests
+└── tests/                           # 40 deterministic tests
 ```
 
 Each first-level directory has its own README:
@@ -207,13 +230,14 @@ Every benchmark gets an isolated UTC-stamped directory:
 ```text
 outputs/hotpotqa/react/<UTC timestamp>/
 ├── config.json          # Complete reproducibility settings
-├── metrics.json         # Aggregate metrics and termination counts
+├── metrics.json         # Official HotpotQA + operational metrics
 ├── predictions.jsonl    # One record per example, flushed immediately
 ├── trajectories.jsonl   # Act/ReAct steps, one flushed record per example
 └── run.log              # Same inspectable progress retained from stdout
 ```
 
-`predictions.jsonl` is flushed after every example for every method.
+`predictions.jsonl` is flushed after every example for every method and includes
+per-example answer, supporting-fact, and joint scores.
 `trajectories.jsonl` is created for interactive Act/ReAct runs and contains the
 model output, Thought, canonical Action, and actual environment Observation for
 each step.
@@ -242,8 +266,8 @@ python main.py --help
 python main.py doctor
 ```
 
-The 36-test suite is offline/model-free and covers configuration/CLI smoke,
-seeded HotpotQA loading, normalization/Exact Match, Hugging Face agent wiring,
+The 40-test suite is offline/model-free and covers configuration/CLI smoke,
+seeded HotpotQA loading, official answer/supporting-fact/joint metrics, Hugging Face agent wiring,
 Standard/CoT parsing, Wikipedia Search/Lookup/Finish, ambiguity, repeated
 Lookup, loop detection, max steps, Act-only/ReAct recovery, incremental
 prediction persistence, and trajectory persistence.

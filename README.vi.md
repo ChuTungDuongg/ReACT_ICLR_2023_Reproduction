@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/Paper-ICLR%202023-6f42c1" alt="Paper ICLR 2023">
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Trạng_thái-Hoàn%20tất%20Sprint%204-238636" alt="Hoàn tất Sprint 4">
-  <img src="https://img.shields.io/badge/Tests-36%20PASS-18A0AE" alt="36 tests PASS">
+  <img src="https://img.shields.io/badge/Tests-40%20PASS-18A0AE" alt="40 tests PASS">
   <img src="https://img.shields.io/badge/Điểm_vào-main.py-102A43" alt="Chạy bằng main.py">
 </p>
 
@@ -99,6 +99,27 @@ Sau đó chạy ReAct với 5 mẫu HotpotQA:
     --show-trajectories
 ```
 
+### Ghi chú Sprint 4 khi chạy HotpotQA trên Colab
+
+- `--num-samples` là tổng số example, không phải batch size. Sprint 4 chạy tuần
+  tự từng example; model chỉ load một lần rồi được tái sử dụng.
+- Split hiện tại `hotpotqa/hotpot_qa`, `distractor`, `validation` có tối đa
+  **7.405 examples**. Giá trị hợp lệ là `1-7405`; nhập lớn hơn sẽ dừng với lỗi
+  validation.
+- Nên dùng 5 mẫu để smoke test, 20-50 mẫu để kiểm tra prompt/failure, và chỉ
+  chạy 100/500+ sau khi đã xác nhận runtime cùng độ ổn định của MediaWiki.
+- Không thêm `--quiet` trên Colab. Metrics của từng example, toàn bộ 12 official
+  HotpotQA metrics và operational metrics cuối run sẽ hiện trên cell, đồng thời
+  được lưu vào `run.log`.
+- `metrics.json` chứa answer `EM/F1/precision/recall`, supporting-fact
+  `SP EM/F1/precision/recall`, joint `EM/F1/precision/recall`, evidence coverage,
+  runtime, steps/tools trung bình và termination reasons.
+- Công thức bám theo
+  [official HotpotQA evaluator](https://github.com/hotpotqa/hotpot/blob/master/hotpot_evaluate_v1.py).
+- Agent Sprint 4 hiện trả lời answer nhưng chưa xuất cặp evidence HotpotQA
+  `(title, sentence_id)`. Evaluator chính thức sẽ chấm supporting-fact prediction
+  rỗng (SP/joint thường bằng 0), báo rõ evidence coverage và không tự bịa evidence.
+
 Chương trình tự chọn CUDA nếu PyTorch nhìn thấy GPU; nếu không có CUDA thì tự
 chuyển sang CPU. `bitsandbytes` không bắt buộc. Có thể khai báo `HF_TOKEN` trong
 Colab để tăng giới hạn tải từ Hugging Face Hub.
@@ -172,7 +193,7 @@ main.py
   → HuggingFaceProvider load tokenizer/model
   → agent Standard / CoT / Act-only / ReAct
        └─ Act/ReAct → WikipediaEnvironment → MediaWiki API
-  → Exact Match evaluator
+  → evaluator chính thức answer/supporting-fact/joint của HotpotQA
   → lưu config, prediction, trajectory, metrics và log
 ```
 
@@ -190,7 +211,7 @@ main.py
 ├── src/react_reproduction/
 │   ├── agents/                     # Standard, CoT, Act-only, ReAct và parser
 │   ├── datasets/                   # BenchmarkExample và HotpotQA loader
-│   ├── evaluation/                 # Exact Match và schema kết quả
+│   ├── evaluation/                 # Full official metrics và schema kết quả
 │   ├── experiments/                # Runner và ghi artifact
 │   ├── llm/                        # Interface LLM và Hugging Face provider
 │   ├── prompts/                    # Prompt cho từng phương pháp
@@ -198,7 +219,7 @@ main.py
 │   ├── cli.py                      # Khai báo command và kết nối component
 │   ├── config.py                   # Đọc, kiểm tra YAML và biến môi trường
 │   └── logging_utils.py            # Live stdout UTF-8 và run.log
-└── tests/                           # 36 unit/integration-style tests
+└── tests/                           # 40 unit/integration-style tests
 ```
 
 README tiếng Việt của từng thư mục:
@@ -227,7 +248,7 @@ outputs/hotpotqa/react/<UTC timestamp>/
 | `config.json` | Lưu model, dataset, method, seed, generation config và device |
 | `predictions.jsonl` | Mỗi dòng là kết quả của một example; flush ngay sau example |
 | `trajectories.jsonl` | Mỗi dòng là toàn bộ trajectory của một Act/ReAct example |
-| `metrics.json` | Exact Match, runtime, số bước/tool call và lý do dừng |
+| `metrics.json` | Full official HotpotQA metrics, runtime, steps/tool calls và lý do dừng |
 | `run.log` | Bản log được lưu song song với stdout |
 
 `--show-trajectories` làm stdout hiển thị từng Thought, Action, Observation và
@@ -257,11 +278,11 @@ python main.py --help
 python main.py doctor
 ```
 
-36 tests hiện tại kiểm tra:
+40 tests hiện tại kiểm tra:
 
 - CLI, cấu hình và `doctor`;
 - HotpotQA loading, validation và sampling theo seed;
-- chuẩn hóa đáp án và Exact Match;
+- answer EM/F1/precision/recall, supporting-fact và joint metrics chính thức;
 - Standard/CoT agent và parser;
 - Search/Lookup/Finish, trang thiếu hoặc mơ hồ;
 - Lookup nhiều lần, loop detection và max-step;

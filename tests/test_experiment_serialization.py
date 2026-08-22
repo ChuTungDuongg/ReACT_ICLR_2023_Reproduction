@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import logging
 import shutil
+from io import StringIO
 from pathlib import Path
 from uuid import uuid4
 
@@ -22,8 +24,22 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 def test_mock_benchmark_serializes_config_metrics_and_predictions() -> None:
     test_output_root = PROJECT_ROOT / "outputs" / f"_pytest_{uuid4().hex}"
     examples = [
-        BenchmarkExample("example-1", "First question?", "The Answer"),
-        BenchmarkExample("example-2", "Second question?", "Berlin"),
+        BenchmarkExample(
+            "example-1",
+            "First question?",
+            "The Answer",
+            metadata={
+                "supporting_facts": {"title": ["Article A"], "sent_id": [0]}
+            },
+        ),
+        BenchmarkExample(
+            "example-2",
+            "Second question?",
+            "Berlin",
+            metadata={
+                "supporting_facts": {"title": ["Article B"], "sent_id": [1]}
+            },
+        ),
     ]
     predictor = MockPredictor(
         {
@@ -43,12 +59,19 @@ def test_mock_benchmark_serializes_config_metrics_and_predictions() -> None:
         timestamp="2026-08-23T01:30:00+00:00",
     )
 
+    log_stream = StringIO()
+    logger = logging.getLogger(f"test.runner.{uuid4().hex}")
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+    logger.addHandler(logging.StreamHandler(log_stream))
+
     try:
         result = run_hotpotqa_benchmark(
             examples,
             predictor,
             config,
             output_root=test_output_root,
+            logger=logger,
         )
 
         serialized_config = json.loads(result.artifacts.config_path.read_text("utf-8"))
@@ -58,6 +81,15 @@ def test_mock_benchmark_serializes_config_metrics_and_predictions() -> None:
         assert serialized_config["seed"] == 42
         assert serialized_config["model"] == "mock"
         assert serialized_metrics["exact_match"] == 0.5
+        assert serialized_metrics["f1"] == 0.5
+        assert serialized_metrics["precision"] == 0.5
+        assert serialized_metrics["recall"] == 0.5
+        assert serialized_metrics["supporting_fact_exact_match"] == 0.0
+        assert serialized_metrics["joint_exact_match"] == 0.0
+        assert serialized_metrics["supporting_fact_prediction_coverage"] == 0.0
+        assert serialized_metrics["official_hotpotqa"]["em"] == 0.5
+        assert serialized_metrics["official_hotpotqa"]["sp_f1"] == 0.0
+        assert serialized_metrics["official_hotpotqa"]["joint_f1"] == 0.0
         assert serialized_metrics["correct"] == 1
         assert serialized_metrics["incorrect"] == 1
         assert serialized_metrics["average_steps"] == 1.0
@@ -65,8 +97,18 @@ def test_mock_benchmark_serializes_config_metrics_and_predictions() -> None:
         assert serialized_metrics["termination_reasons"] == {"mock_completed": 2}
         assert len(prediction_lines) == 2
         assert json.loads(prediction_lines[0])["correct"] is True
+        assert json.loads(prediction_lines[0])["gold_supporting_facts"] == [
+            ["Article A", 0]
+        ]
+        assert "=== FINAL HOTPOTQA METRICS ===" in log_stream.getvalue()
+        assert "metric.em=0.500000" in log_stream.getvalue()
+        assert "metric.sp_f1=0.000000" in log_stream.getvalue()
+        assert "metric.joint_f1=0.000000" in log_stream.getvalue()
         assert result.artifacts.run_directory.name == "2026-08-23_013000"
     finally:
+        for handler in logger.handlers[:]:
+            logger.removeHandler(handler)
+            handler.close()
         if test_output_root.exists():
             resolved_test_root = test_output_root.resolve()
             assert resolved_test_root.parent == (PROJECT_ROOT / "outputs").resolve()

@@ -22,8 +22,13 @@ outputs/<task>/<method>/<UTC timestamp>/
 - `config.json`: lưu toàn bộ cấu hình cần để hiểu/tái hiện run.
 - `predictions.jsonl`: mỗi example một dòng, được flush ngay sau example.
 - `trajectories.jsonl`: mỗi Act/ReAct example một dòng, chứa toàn bộ các bước.
-- `metrics.json`: tổng hợp Exact Match, runtime, steps, tool calls và lý do dừng.
+- `metrics.json`: đủ 12 official answer/supporting-fact/joint HotpotQA metrics,
+  evidence coverage, runtime, steps, tool calls và lý do dừng.
 - `run.log`: bản lưu của progress và trajectory đã in live trên stdout.
+
+Toàn bộ final metrics cũng được in ra terminal/Colab nếu không dùng `--quiet`.
+Khi agent không xuất cặp evidence `(title, sentence_id)`, SP/joint metrics chấm
+prediction rỗng và evidence coverage thể hiện rõ giới hạn đó.
 
 JSONL được dùng vì có thể append từng record. Nếu run bị ngắt giữa chừng, các
 example đã hoàn thành vẫn còn trên disk thay vì mất toàn bộ kết quả.

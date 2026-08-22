@@ -19,7 +19,7 @@ chạy ngay, không cần `pip install -e .`.
 | `react_reproduction/prompts/` | Prompt builder | Tạo prompt khác nhau cho Standard, CoT, Act-only, ReAct |
 | `react_reproduction/agents/` | Logic phương pháp | Chạy model, parse output, quản lý vòng lặp và tạo trajectory |
 | `react_reproduction/tools/` | Wikipedia tool | Search/Lookup/Finish, state bài viết, timeout/retry, loop/max-step |
-| `react_reproduction/evaluation/` | Chấm điểm | Chuẩn hóa đáp án, Exact Match và schema JSON |
+| `react_reproduction/evaluation/` | Chấm điểm | Tính official answer/supporting-fact/joint metrics và schema JSON |
 | `react_reproduction/experiments/` | Điều phối run | Chạy từng example, đo latency, flush JSONL và ghi metrics |
 
 ## Luồng gọi code

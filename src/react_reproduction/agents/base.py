@@ -32,10 +32,15 @@ class AgentResult:
     tool_calls: int
     termination_reason: str
     trajectory: tuple[TrajectoryStep, ...] = field(default_factory=tuple)
+    supporting_facts: tuple[tuple[str, int], ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
         if self.steps < 0 or self.tool_calls < 0:
             raise ValueError("steps and tool_calls cannot be negative.")
+        if any(not title.strip() or sentence_id < 0 for title, sentence_id in self.supporting_facts):
+            raise ValueError(
+                "supporting_facts require a non-empty title and non-negative sentence id."
+            )
 
 
 class BaseAgent(ABC):

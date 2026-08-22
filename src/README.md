@@ -18,7 +18,7 @@ package.
 | `react_reproduction/prompts/` | Builds HotpotQA prompts for Standard, CoT, Act-only, and ReAct. |
 | `react_reproduction/agents/` | Contains result/trajectory contracts, output parsers, and all four agent implementations. |
 | `react_reproduction/tools/` | Calls MediaWiki and owns Search/Lookup/Finish state, ambiguity, loop, and max-step behavior. |
-| `react_reproduction/evaluation/` | Normalizes answers, computes Exact Match, and defines JSON-ready records. |
+| `react_reproduction/evaluation/` | Computes official answer/supporting-fact/joint metrics and defines JSON-ready records. |
 | `react_reproduction/experiments/` | Runs examples and incrementally persists predictions, trajectories, metrics, config, and logs. |
 
 ## Data flow

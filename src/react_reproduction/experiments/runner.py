@@ -13,7 +13,9 @@ from react_reproduction.agents.base import AgentResult
 from react_reproduction.datasets.base import BenchmarkExample
 from react_reproduction.evaluation.metrics import (
     aggregate_hotpotqa_metrics,
-    exact_match_score,
+    answer_metrics,
+    joint_metrics,
+    supporting_fact_metrics,
 )
 from react_reproduction.evaluation.schemas import (
     BenchmarkMetrics,
@@ -135,7 +137,32 @@ def run_hotpotqa_benchmark(
         example_started = time.perf_counter()
         output = predictor.predict(example)
         latency = time.perf_counter() - example_started
-        correct = exact_match_score(output.prediction, example.gold_answer)
+        answer_em, answer_f1, answer_precision, answer_recall = answer_metrics(
+            output.prediction,
+            example.gold_answer,
+        )
+        predicted_supporting_facts = output.supporting_facts
+        gold_supporting_facts = _extract_supporting_facts(
+            example.metadata.get("supporting_facts")
+        )
+        (
+            supporting_fact_em,
+            supporting_fact_f1,
+            supporting_fact_precision,
+            supporting_fact_recall,
+        ) = supporting_fact_metrics(
+            predicted_supporting_facts,
+            gold_supporting_facts,
+        )
+        joint_em, joint_f1, joint_precision, joint_recall = joint_metrics(
+            answer_em,
+            answer_precision,
+            answer_recall,
+            supporting_fact_em,
+            supporting_fact_precision,
+            supporting_fact_recall,
+        )
+        correct = answer_em
         running_correct += int(correct)
 
         record = PredictionRecord(
@@ -146,6 +173,19 @@ def run_hotpotqa_benchmark(
             gold_answer=example.gold_answer,
             prediction=output.prediction,
             correct=correct,
+            answer_f1=answer_f1,
+            answer_precision=answer_precision,
+            answer_recall=answer_recall,
+            predicted_supporting_facts=predicted_supporting_facts,
+            gold_supporting_facts=gold_supporting_facts,
+            supporting_fact_exact_match=supporting_fact_em,
+            supporting_fact_f1=supporting_fact_f1,
+            supporting_fact_precision=supporting_fact_precision,
+            supporting_fact_recall=supporting_fact_recall,
+            joint_exact_match=joint_em,
+            joint_f1=joint_f1,
+            joint_precision=joint_precision,
+            joint_recall=joint_recall,
             steps=output.steps,
             tool_calls=output.tool_calls,
             termination_reason=output.termination_reason,
@@ -184,6 +224,30 @@ def run_hotpotqa_benchmark(
         active_logger.info("Prediction: %s", output.prediction)
         active_logger.info("Gold: %s", example.gold_answer)
         active_logger.info(
+            "Answer metrics | EM: %.4f | F1: %.4f | Precision: %.4f | Recall: %.4f",
+            float(answer_em),
+            answer_f1,
+            answer_precision,
+            answer_recall,
+        )
+        active_logger.info(
+            "Supporting-fact metrics | EM: %.4f | F1: %.4f | Precision: %.4f | "
+            "Recall: %.4f | Predicted: %d | Gold: %d",
+            supporting_fact_em,
+            supporting_fact_f1,
+            supporting_fact_precision,
+            supporting_fact_recall,
+            len(predicted_supporting_facts),
+            len(gold_supporting_facts),
+        )
+        active_logger.info(
+            "Joint metrics | EM: %.4f | F1: %.4f | Precision: %.4f | Recall: %.4f",
+            joint_em,
+            joint_f1,
+            joint_precision,
+            joint_recall,
+        )
+        active_logger.info(
             "Correct: %s | Running EM: %.2f%% | Steps: %d | Tool calls: %d | Latency: %.3fs",
             correct,
             100.0 * running_correct / index,
@@ -195,6 +259,7 @@ def run_hotpotqa_benchmark(
     runtime = time.perf_counter() - run_started
     metrics = aggregate_hotpotqa_metrics(prediction_records, runtime=runtime)
     write_metrics(active_artifacts, metrics)
+    _log_final_metrics(active_logger, metrics)
     return BenchmarkRunResult(
         metrics=metrics,
         predictions=tuple(prediction_records),
@@ -204,3 +269,54 @@ def run_hotpotqa_benchmark(
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _extract_supporting_facts(raw_value: Any) -> tuple[tuple[str, int], ...]:
+    """Normalize Hugging Face HotpotQA supporting facts into title/id pairs."""
+    if raw_value is None:
+        return ()
+    pairs: list[tuple[str, int]] = []
+    if isinstance(raw_value, Mapping):
+        titles = raw_value.get("title", ())
+        sentence_ids = raw_value.get("sent_id", ())
+        for title, sentence_id in zip(titles, sentence_ids, strict=False):
+            cleaned_title = str(title).strip()
+            parsed_sentence_id = int(sentence_id)
+            if cleaned_title and parsed_sentence_id >= 0:
+                pairs.append((cleaned_title, parsed_sentence_id))
+        return tuple(pairs)
+    if isinstance(raw_value, Sequence) and not isinstance(raw_value, (str, bytes)):
+        for item in raw_value:
+            if not isinstance(item, Sequence) or isinstance(item, (str, bytes)):
+                continue
+            if len(item) != 2:
+                continue
+            cleaned_title = str(item[0]).strip()
+            parsed_sentence_id = int(item[1])
+            if cleaned_title and parsed_sentence_id >= 0:
+                pairs.append((cleaned_title, parsed_sentence_id))
+    return tuple(pairs)
+
+
+def _log_final_metrics(logger: logging.Logger, metrics: BenchmarkMetrics) -> None:
+    """Stream every official and operational metric to stdout and run.log."""
+    logger.info("=== FINAL HOTPOTQA METRICS ===")
+    for name, value in metrics.official_hotpotqa_metrics().items():
+        logger.info("metric.%s=%.6f", name, value)
+    logger.info(
+        "metric.supporting_fact_prediction_coverage=%.6f",
+        metrics.supporting_fact_prediction_coverage,
+    )
+    logger.info("metric.total_examples=%d", metrics.total_examples)
+    logger.info("metric.correct=%d", metrics.correct)
+    logger.info("metric.incorrect=%d", metrics.incorrect)
+    logger.info("metric.average_steps=%.6f", metrics.average_steps)
+    logger.info("metric.average_tool_calls=%.6f", metrics.average_tool_calls)
+    logger.info("metric.runtime_seconds=%.6f", metrics.runtime)
+    logger.info("metric.termination_reasons=%s", dict(metrics.termination_reasons))
+    if metrics.supporting_fact_prediction_coverage == 0.0:
+        logger.warning(
+            "No supporting-fact pairs were predicted. Official sp_* and joint_* "
+            "metrics therefore score empty evidence predictions; no evidence was fabricated."
+        )
+    logger.info("=== END FINAL HOTPOTQA METRICS ===")
