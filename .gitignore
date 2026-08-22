@@ -30,10 +30,12 @@ Thumbs.db
 # Experiment artifacts (retain the directory marker)
 outputs/*
 !outputs/.gitkeep
+!outputs/README.md
 
 # Local ML data, caches, models, and checkpoints
 data/
 cache/
+tmp/
 models/
 checkpoints/
 wandb/

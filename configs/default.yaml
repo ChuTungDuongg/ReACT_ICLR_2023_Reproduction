@@ -2,6 +2,12 @@ project_name: react-paper-reproduction
 output_dir: outputs
 log_level: INFO
 
+datasets:
+  hotpotqa:
+    dataset_name: hotpotqa/hotpot_qa
+    subset: distractor
+    split: validation
+
 benchmark:
   num_samples: 10
   seed: 42

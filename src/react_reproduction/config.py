@@ -33,12 +33,22 @@ class GenerationConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class HotpotQAConfig:
+    """Hugging Face source used by the HotpotQA benchmark."""
+
+    dataset_name: str = "hotpotqa/hotpot_qa"
+    subset: str = "distractor"
+    split: str = "validation"
+
+
+@dataclass(frozen=True, slots=True)
 class ProjectConfig:
     """Validated Sprint 0 configuration."""
 
     project_name: str
     output_dir: Path
     log_level: str
+    hotpotqa: HotpotQAConfig
     benchmark: BenchmarkDefaults
     generation: GenerationConfig
 
@@ -60,6 +70,8 @@ def load_project_config(config_path: Path, *, project_root: Path) -> ProjectConf
 
     benchmark_data = _mapping(raw_config.get("benchmark"), "benchmark")
     generation_data = _mapping(raw_config.get("generation"), "generation")
+    datasets_data = _mapping(raw_config.get("datasets"), "datasets")
+    hotpotqa_data = _mapping(datasets_data.get("hotpotqa"), "datasets.hotpotqa")
 
     project_name = str(raw_config.get("project_name", "react-paper-reproduction"))
     output_value = os.getenv(
@@ -72,6 +84,20 @@ def load_project_config(config_path: Path, *, project_root: Path) -> ProjectConf
         valid_levels = ", ".join(sorted(VALID_LOG_LEVELS))
         raise ValueError(f"Invalid log level {log_level!r}; expected one of {valid_levels}.")
 
+    hotpotqa = HotpotQAConfig(
+        dataset_name=_non_empty_string(
+            hotpotqa_data.get("dataset_name", "hotpotqa/hotpot_qa"),
+            "datasets.hotpotqa.dataset_name",
+        ),
+        subset=_non_empty_string(
+            hotpotqa_data.get("subset", "distractor"),
+            "datasets.hotpotqa.subset",
+        ),
+        split=_non_empty_string(
+            hotpotqa_data.get("split", "validation"),
+            "datasets.hotpotqa.split",
+        ),
+    )
     benchmark = BenchmarkDefaults(
         num_samples=_positive_int(benchmark_data.get("num_samples", 10), "num_samples"),
         seed=int(benchmark_data.get("seed", 42)),
@@ -95,6 +121,7 @@ def load_project_config(config_path: Path, *, project_root: Path) -> ProjectConf
         project_name=project_name,
         output_dir=_resolve_path(Path(output_value), root),
         log_level=log_level,
+        hotpotqa=hotpotqa,
         benchmark=benchmark,
         generation=generation,
     )
@@ -116,4 +143,11 @@ def _positive_int(value: Any, field_name: str) -> int:
     parsed = int(value)
     if parsed <= 0:
         raise ValueError(f"Configuration field {field_name!r} must be positive.")
+    return parsed
+
+
+def _non_empty_string(value: Any, field_name: str) -> str:
+    parsed = str(value).strip()
+    if not parsed:
+        raise ValueError(f"Configuration field {field_name!r} cannot be empty.")
     return parsed

@@ -43,5 +43,6 @@ def test_doctor_loads_default_config() -> None:
     )
 
     assert completed.returncode == 0, completed.stderr
-    assert "Project bootstrap is healthy." in completed.stdout
+    assert "Project configuration is healthy." in completed.stdout
     assert str(PROJECT_ROOT / "outputs") in completed.stdout
+    assert "hotpotqa/hotpot_qa/distractor split=validation" in completed.stdout

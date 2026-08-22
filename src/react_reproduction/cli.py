@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import logging
 from pathlib import Path
 from typing import Sequence
 
@@ -32,7 +31,7 @@ def build_parser(project_root: Path) -> argparse.ArgumentParser:
 
     doctor = subparsers.add_parser(
         "doctor",
-        help="Validate the Sprint 0 project configuration.",
+        help="Validate the project configuration and dataset settings.",
     )
     _add_shared_options(doctor, project_root)
 
@@ -75,16 +74,22 @@ def main(
     logger = configure_logging(log_level, quiet=getattr(args, "quiet", False))
 
     if args.command == "doctor":
-        logger.info("Project bootstrap is healthy.")
+        logger.info("Project configuration is healthy.")
         logger.info("Project: %s", config.project_name)
         logger.info("Config: %s", args.config.resolve())
         logger.info("Output directory: %s", config.output_dir)
+        logger.info(
+            "HotpotQA: %s/%s split=%s",
+            config.hotpotqa.dataset_name,
+            config.hotpotqa.subset,
+            config.hotpotqa.split,
+        )
         return 0
 
     if args.command == "benchmark":
         logger.error(
-            "Benchmark execution is not implemented in Sprint 0. "
-            "Dataset and inference support will be added in later sprints."
+            "CLI benchmark execution requires the model and prompting methods "
+            "scheduled for Sprint 2. Sprint 1 provides a tested mock runner."
         )
         return 2
 
