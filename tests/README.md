@@ -2,7 +2,7 @@
 
 > 🌐 **Language:** English | [Tiếng Việt](README.vi.md)
 
-The 40-test suite is deterministic and does not download a model or call live
+The 48-test suite is deterministic and does not download a model or call live
 Wikipedia. Scripted LLMs, injected datasets, and a fake Wikipedia client cover
 the same control flow used by real runs.
 
@@ -18,6 +18,7 @@ python -m pytest -q
 |---|---|
 | `test_smoke.py` | CLI help, configuration, and `doctor`. |
 | `test_hotpotqa.py` | Seeded sampling, metadata, loader arguments, validation. |
+| `test_hotpotqa_prompts.py` | Six Appendix C.1 examples per method, question-only target input, and numbered interactive history. |
 | `test_metrics.py` | Official answer, supporting-fact, and joint HotpotQA metrics. |
 | `test_parsing.py` | Standard/CoT answer and reasoning parsing. |
 | `test_standard_cot_agents.py` | Closed-book agent prompts/results. |

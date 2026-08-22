@@ -2,7 +2,7 @@
 
 > 🌐 **Ngôn ngữ:** [English](README.md) | Tiếng Việt
 
-Repository hiện có **40 tests**. Unit tests không tải LLM và không gọi
+Repository hiện có **48 tests**. Unit tests không tải LLM và không gọi
 Wikipedia thật; chúng dùng scripted LLM, dữ liệu inject và fake Wikipedia
 client để kiểm tra đúng control flow với tốc độ nhanh, ổn định.
 
@@ -27,6 +27,7 @@ python -m pytest tests/test_experiment_serialization.py -q
 | `conftest.py` | Thêm `src/` vào import path cho pytest |
 | `test_smoke.py` | CLI help, config và `doctor` |
 | `test_hotpotqa.py` | Sampling theo seed, metadata, loader args và validation |
+| `test_hotpotqa_prompts.py` | 6 ví dụ Appendix C.1 cho từng method, target question-only và history đánh số |
 | `test_metrics.py` | Official answer, supporting-fact và joint HotpotQA metrics |
 | `test_parsing.py` | Parse đáp án Standard/CoT và reasoning |
 | `test_standard_cot_agents.py` | Prompt, result và trajectory của Standard/CoT |

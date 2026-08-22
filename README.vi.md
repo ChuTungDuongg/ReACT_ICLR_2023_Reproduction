@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/Paper-ICLR%202023-6f42c1" alt="Paper ICLR 2023">
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Trạng_thái-Hoàn%20tất%20Sprint%204-238636" alt="Hoàn tất Sprint 4">
-  <img src="https://img.shields.io/badge/Tests-40%20PASS-18A0AE" alt="40 tests PASS">
+  <img src="https://img.shields.io/badge/Tests-48%20PASS-18A0AE" alt="48 tests PASS">
   <img src="https://img.shields.io/badge/Điểm_vào-main.py-102A43" alt="Chạy bằng main.py">
 </p>
 
@@ -22,6 +22,10 @@
 (CoT)**, **Act-only** và **ReAct** trên HotpotQA. Model được chạy bằng Hugging
 Face; Act-only và ReAct có thể tìm kiếm Wikipedia thật. Toàn bộ chương trình có
 một điểm vào duy nhất là `main.py`.
+
+Cả bốn phương pháp hiện dùng đúng bộ 6 ví dụ HotpotQA viết thủ công trong
+Appendix C.1 của paper. CLI mặc định chọn `Qwen/Qwen2.5-7B-Instruct`; vẫn có thể
+dùng `--model` để chọn model causal LM tương thích khác.
 
 > Đây là reproduction study dùng modern instruction-tuned LLM. Nó không phải
 > bản tái hiện chính xác PaLM-540B của paper gốc, vì model, hạ tầng và trạng thái
@@ -93,7 +97,7 @@ Sau đó chạy ReAct với 5 mẫu HotpotQA:
 !python main.py benchmark \
     --task hotpotqa \
     --method react \
-    --model Qwen/Qwen2.5-3B-Instruct \
+    --model Qwen/Qwen2.5-7B-Instruct \
     --num-samples 5 \
     --seed 42 \
     --show-trajectories
@@ -119,6 +123,9 @@ Sau đó chạy ReAct với 5 mẫu HotpotQA:
 - Agent Sprint 4 hiện trả lời answer nhưng chưa xuất cặp evidence HotpotQA
   `(title, sentence_id)`. Evaluator chính thức sẽ chấm supporting-fact prediction
   rỗng (SP/joint thường bằng 0), báo rõ evidence coverage và không tự bịa evidence.
+- Qwen2.5-7B cần nhiều bộ nhớ hơn đáng kể so với bản 3B trước đây. Nên chọn GPU
+  Colab loại L4/A100. T4 có thể phải offload một phần model sang RAM nhờ
+  `device_map=auto`, vì vậy tốc độ sẽ chậm hơn nhiều.
 
 Chương trình tự chọn CUDA nếu PyTorch nhìn thấy GPU; nếu không có CUDA thì tự
 chuyển sang CPU. `bitsandbytes` không bắt buộc. Có thể khai báo `HF_TOKEN` trong
@@ -140,7 +147,7 @@ Chạy Standard:
 python main.py benchmark \
     --task hotpotqa \
     --method standard \
-    --model Qwen/Qwen2.5-3B-Instruct \
+    --model Qwen/Qwen2.5-7B-Instruct \
     --num-samples 5 \
     --seed 42
 ```
@@ -148,6 +155,11 @@ python main.py benchmark \
 Thay `standard` bằng `cot`, `act` hoặc `react` để đổi phương pháp. Với Act-only
 và ReAct, nên thêm `--show-trajectories` để xem trực tiếp Action/Observation và
 Thought nếu có.
+
+`--model` là tùy chọn; nếu bỏ qua, CLI tự dùng
+`Qwen/Qwen2.5-7B-Instruct`. Standard, CoT, Act-only và ReAct nhận prompt pack
+6-shot tương ứng trong Appendix C.1; example cần chấm vẫn chỉ đưa câu hỏi vào
+model, không đưa supporting paragraphs.
 
 Các tham số hữu ích:
 
@@ -219,7 +231,7 @@ main.py
 │   ├── cli.py                      # Khai báo command và kết nối component
 │   ├── config.py                   # Đọc, kiểm tra YAML và biến môi trường
 │   └── logging_utils.py            # Live stdout UTF-8 và run.log
-└── tests/                           # 40 unit/integration-style tests
+└── tests/                           # 48 unit/integration-style tests
 ```
 
 README tiếng Việt của từng thư mục:
@@ -278,12 +290,12 @@ python main.py --help
 python main.py doctor
 ```
 
-40 tests hiện tại kiểm tra:
+48 tests hiện tại kiểm tra:
 
 - CLI, cấu hình và `doctor`;
 - HotpotQA loading, validation và sampling theo seed;
 - answer EM/F1/precision/recall, supporting-fact và joint metrics chính thức;
-- Standard/CoT agent và parser;
+- 6-shot prompt pack của paper, nhãn đánh số và Standard/CoT parser;
 - Search/Lookup/Finish, trang thiếu hoặc mơ hồ;
 - Lookup nhiều lần, loop detection và max-step;
 - Act-only/ReAct, parsing recovery và trajectory history;

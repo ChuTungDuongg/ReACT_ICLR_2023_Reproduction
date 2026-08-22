@@ -49,7 +49,7 @@ def test_react_agent_reasons_searches_looks_up_and_finishes() -> None:
     assert result.tool_calls == 2
     assert result.termination_reason == "completed"
     assert result.trajectory[0].thought == "Find Einstein."
-    assert "Observation:" in llm.prompts[1]
+    assert "Observation 1:" in llm.prompts[1]
 
 
 def test_react_agent_recovers_from_one_parsing_error() -> None:

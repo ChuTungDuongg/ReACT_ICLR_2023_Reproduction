@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from react_reproduction.cli import DEFAULT_MODEL, build_parser
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -25,6 +27,14 @@ def test_main_help() -> None:
     assert "Reproduce and benchmark" in completed.stdout
     assert "doctor" in completed.stdout
     assert "benchmark" in completed.stdout
+
+
+def test_benchmark_defaults_to_qwen_7b() -> None:
+    args = build_parser(PROJECT_ROOT).parse_args(
+        ["benchmark", "--task", "hotpotqa", "--method", "react"]
+    )
+
+    assert args.model == DEFAULT_MODEL == "Qwen/Qwen2.5-7B-Instruct"
 
 
 def test_doctor_loads_default_config() -> None:

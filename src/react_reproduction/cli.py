@@ -20,6 +20,7 @@ from react_reproduction.logging_utils import configure_logging
 
 TASKS = ("hotpotqa", "fever")
 METHODS = ("standard", "cot", "act", "react")
+DEFAULT_MODEL = "Qwen/Qwen2.5-7B-Instruct"
 
 
 def build_parser(project_root: Path) -> argparse.ArgumentParser:
@@ -49,7 +50,11 @@ def build_parser(project_root: Path) -> argparse.ArgumentParser:
     _add_shared_options(benchmark, project_root)
     benchmark.add_argument("--task", required=True, choices=TASKS)
     benchmark.add_argument("--method", required=True, choices=METHODS)
-    benchmark.add_argument("--model", required=True)
+    benchmark.add_argument(
+        "--model",
+        default=DEFAULT_MODEL,
+        help=f"Hugging Face model id (default: {DEFAULT_MODEL}).",
+    )
     benchmark.add_argument("--num-samples", type=_positive_int)
     benchmark.add_argument("--seed", type=int)
     benchmark.add_argument("--temperature", type=float)

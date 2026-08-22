@@ -16,7 +16,7 @@ chạy ngay, không cần `pip install -e .`.
 | `react_reproduction/logging_utils.py` | Logging | In UTF-8 live ra stdout và đồng thời ghi `run.log` |
 | `react_reproduction/datasets/` | Dữ liệu benchmark | Chuẩn hóa raw HotpotQA thành `BenchmarkExample`, lấy mẫu theo seed |
 | `react_reproduction/llm/` | Model provider | Định nghĩa interface chung và implementation Hugging Face |
-| `react_reproduction/prompts/` | Prompt builder | Tạo prompt khác nhau cho Standard, CoT, Act-only, ReAct |
+| `react_reproduction/prompts/` | Prompt builder | Dựng Standard, CoT, Act-only và ReAct từ 6 ví dụ HotpotQA viết thủ công trong Appendix C.1 của paper |
 | `react_reproduction/agents/` | Logic phương pháp | Chạy model, parse output, quản lý vòng lặp và tạo trajectory |
 | `react_reproduction/tools/` | Wikipedia tool | Search/Lookup/Finish, state bài viết, timeout/retry, loop/max-step |
 | `react_reproduction/evaluation/` | Chấm điểm | Tính official answer/supporting-fact/joint metrics và schema JSON |
@@ -64,4 +64,5 @@ main.py
 - Luôn giữ seed và config trong artifact để có thể tái hiện run.
 - Không triển khai feature của sprint chưa được cho phép.
 
-Implementation hiện hoàn tất đến Sprint 4.
+Implementation hiện hoàn tất đến Sprint 4. Model mặc định của CLI là
+`Qwen/Qwen2.5-7B-Instruct`.

@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/Paper-ICLR%202023-6f42c1" alt="ICLR 2023 paper">
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Status-Sprint%204%20Complete-238636" alt="Sprint 4 complete">
-  <img src="https://img.shields.io/badge/Tests-40%20Passing-18A0AE" alt="40 tests passing">
+  <img src="https://img.shields.io/badge/Tests-48%20Passing-18A0AE" alt="48 tests passing">
   <img src="https://img.shields.io/badge/Interface-main.py-102A43" alt="CLI first">
 </p>
 
@@ -21,6 +21,10 @@
 A framework-free, inspectable implementation of the Standard, Chain-of-Thought,
 Act-only, and ReAct methods for HotpotQA. It uses Hugging Face models and a
 live Wikipedia environment through one entry point: `main.py`.
+
+All four methods now use the six manually composed HotpotQA demonstrations from
+paper Appendix C.1. The CLI defaults to `Qwen/Qwen2.5-7B-Instruct`; `--model`
+can still select another compatible causal language model.
 
 > Đây là reproduction study dùng modern instruction-tuned LLM, không phải exact
 > reproduction bằng PaLM-540B như paper gốc.
@@ -85,7 +89,7 @@ Then run the requested five-sample benchmark:
 !python main.py benchmark \
     --task hotpotqa \
     --method react \
-    --model Qwen/Qwen2.5-3B-Instruct \
+    --model Qwen/Qwen2.5-7B-Instruct \
     --num-samples 5 \
     --seed 42 \
     --show-trajectories
@@ -113,6 +117,9 @@ Then run the requested five-sample benchmark:
   `(title, sentence_id)` evidence pairs. The official evaluator therefore scores
   an empty supporting-fact prediction (SP/joint scores are normally zero) and
   reports evidence coverage explicitly; it never invents evidence.
+- Qwen2.5-7B requires substantially more memory than the earlier 3B example.
+  An L4/A100-class Colab GPU is recommended. A T4 may offload part of the model
+  to system RAM through `device_map=auto`, which is much slower.
 
 Optionally set `HF_TOKEN` in the Colab environment before the run to receive
 higher Hugging Face Hub rate limits. The command streams progress and every
@@ -129,21 +136,21 @@ python main.py doctor
 python main.py benchmark \
     --task hotpotqa \
     --method standard \
-    --model Qwen/Qwen2.5-3B-Instruct \
+    --model Qwen/Qwen2.5-7B-Instruct \
     --num-samples 5 \
     --seed 42
 
 python main.py benchmark \
     --task hotpotqa \
     --method cot \
-    --model Qwen/Qwen2.5-3B-Instruct \
+    --model Qwen/Qwen2.5-7B-Instruct \
     --num-samples 5 \
     --seed 42
 
 python main.py benchmark \
     --task hotpotqa \
     --method act \
-    --model Qwen/Qwen2.5-3B-Instruct \
+    --model Qwen/Qwen2.5-7B-Instruct \
     --num-samples 5 \
     --seed 42 \
     --show-trajectories
@@ -151,7 +158,7 @@ python main.py benchmark \
 python main.py benchmark \
     --task hotpotqa \
     --method react \
-    --model Qwen/Qwen2.5-3B-Instruct \
+    --model Qwen/Qwen2.5-7B-Instruct \
     --num-samples 5 \
     --seed 42 \
     --show-trajectories
@@ -161,6 +168,10 @@ Useful overrides include `--device auto|cpu|cuda|mps`, `--max-agent-steps`,
 `--max-new-tokens`, `--temperature`, `--top-p`, `--log-level`, and
 `--trust-remote-code`. The default deterministic generation uses temperature
 `0.0`, top-p `1.0`, and seed `42`.
+
+`--model` is optional and defaults to `Qwen/Qwen2.5-7B-Instruct`. Standard,
+CoT, Act-only, and ReAct each receive their corresponding six-example prompt
+ablation from Appendix C.1; the target example still contains only its question.
 
 ## 🧩 How the four methods work
 
@@ -212,7 +223,7 @@ main.py
 │   ├── cli.py                      # Argument parsing and dependency wiring
 │   ├── config.py                   # Typed YAML/environment configuration
 │   └── logging_utils.py            # UTF-8 live stdout + run.log
-└── tests/                           # 40 deterministic tests
+└── tests/                           # 48 deterministic tests
 ```
 
 Each first-level directory has its own README:
@@ -266,9 +277,10 @@ python main.py --help
 python main.py doctor
 ```
 
-The 40-test suite is offline/model-free and covers configuration/CLI smoke,
+The 48-test suite is offline/model-free and covers configuration/CLI smoke,
 seeded HotpotQA loading, official answer/supporting-fact/joint metrics, Hugging Face agent wiring,
-Standard/CoT parsing, Wikipedia Search/Lookup/Finish, ambiguity, repeated
+six-example paper prompt packs, numbered-label parsing, Standard/CoT parsing,
+Wikipedia Search/Lookup/Finish, ambiguity, repeated
 Lookup, loop detection, max steps, Act-only/ReAct recovery, incremental
 prediction persistence, and trajectory persistence.
 

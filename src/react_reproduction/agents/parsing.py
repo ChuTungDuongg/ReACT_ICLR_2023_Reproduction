@@ -12,16 +12,18 @@ _FINAL_ANSWER = re.compile(
     flags=re.IGNORECASE | re.MULTILINE,
 )
 _REASONING = re.compile(
-    r"(?:^|\n)\s*reasoning\s*:\s*(.*?)(?=\n\s*final\s+answer\s*:|$)",
+    r"(?:^|\n)\s*(?:reasoning|thought)(?:\s+\d+)?\s*:?\s*(.*?)"
+    r"(?=\n\s*(?:final\s+answer|answer)\s*:|$)",
     flags=re.IGNORECASE | re.DOTALL,
 )
 _TOOL_ACTION = re.compile(
-    r"(?:^|\n)\s*(?:action\s*:\s*)?"
+    r"(?:^|\n)\s*(?:action(?:\s+\d+)?\s*:?\s*)?"
     r"(search|lookup|finish)\s*\[(.*?)\]\s*$",
     flags=re.IGNORECASE | re.MULTILINE,
 )
 _THOUGHT = re.compile(
-    r"(?:^|\n)\s*thought\s*:\s*(.*?)(?=\n\s*(?:action\s*:)?"
+    r"(?:^|\n)\s*thought(?:\s+\d+)?\s*:?\s*(.*?)"
+    r"(?=\n\s*(?:action(?:\s+\d+)?\s*:?\s*)?"
     r"\s*(?:search|lookup|finish)\s*\[|$)",
     flags=re.IGNORECASE | re.DOTALL,
 )

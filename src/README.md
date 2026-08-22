@@ -15,7 +15,7 @@ package.
 | `react_reproduction/logging_utils.py` | Streams UTF-8 logs to stdout and duplicates benchmark logs to `run.log`. |
 | `react_reproduction/datasets/` | Defines `BenchmarkExample` and deterministic HotpotQA loading/sampling. |
 | `react_reproduction/llm/` | Defines the provider interface and lazy Hugging Face implementation with automatic device/dtype selection. |
-| `react_reproduction/prompts/` | Builds HotpotQA prompts for Standard, CoT, Act-only, and ReAct. |
+| `react_reproduction/prompts/` | Builds Standard, CoT, Act-only, and ReAct prompts from the six manually composed HotpotQA examples in paper Appendix C.1. |
 | `react_reproduction/agents/` | Contains result/trajectory contracts, output parsers, and all four agent implementations. |
 | `react_reproduction/tools/` | Calls MediaWiki and owns Search/Lookup/Finish state, ambiguity, loop, and max-step behavior. |
 | `react_reproduction/evaluation/` | Computes official answer/supporting-fact/joint metrics and defines JSON-ready records. |
@@ -29,5 +29,6 @@ CLI → HotpotQA → Hugging Face model → agent
     → evaluator → outputs/<task>/<method>/<timestamp>/
 ```
 
-The implementation is complete through Sprint 4. Keep model/network work lazy,
-keep the core loops framework-free, and preserve deterministic seeded behavior.
+The implementation is complete through Sprint 4. Qwen2.5-7B-Instruct is the
+CLI default model. Keep model/network work lazy, keep the core loops
+framework-free, and preserve deterministic seeded behavior.

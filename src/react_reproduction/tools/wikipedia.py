@@ -13,7 +13,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 DEFAULT_API_URL = "https://en.wikipedia.org/w/api.php"
 USER_AGENT = (
-    "ReActPaperReproduction/0.5.1 "
+    "ReActPaperReproduction/0.6.0 "
     "(https://github.com/ChuTungDuongg/ReACT_ICLR_2023_Reproduction)"
 )
 

@@ -36,7 +36,8 @@ def test_standard_agent_returns_parsed_answer_without_tools() -> None:
     assert result.steps == 1
     assert result.tool_calls == 0
     assert result.termination_reason == "completed"
-    assert "Final Answer" in llm.prompts[0]
+    assert "six manually composed examples" in llm.prompts[0]
+    assert llm.prompts[0].count("Question:") == 7
 
 
 def test_cot_agent_records_reasoning_in_trajectory() -> None:
@@ -48,3 +49,13 @@ def test_cot_agent_records_reasoning_in_trajectory() -> None:
     assert result.prediction == "Berlin"
     assert result.trajectory[0].thought == "Germany's capital is Berlin."
     assert result.tool_calls == 0
+
+
+def test_cot_agent_parses_paper_style_thought_and_answer() -> None:
+    llm = StubLLM("Thought: Germany's capital is Berlin.\nAnswer: Berlin")
+    agent = CoTAgent(llm, GenerationConfig(max_new_tokens=64))
+
+    result = agent.predict(BenchmarkExample("1", "Capital of Germany?", "Berlin"))
+
+    assert result.prediction == "Berlin"
+    assert result.trajectory[0].thought == "Germany's capital is Berlin."

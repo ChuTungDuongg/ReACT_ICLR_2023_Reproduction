@@ -31,6 +31,8 @@ from react_reproduction.tools.wikipedia import ActionType
             "Sergei Aleksandrovich Tokarev",
         ),
         ("Action: Finish[Germany]", ActionType.FINISH, "Germany"),
+        ("Action 2: Lookup[born]", ActionType.LOOKUP, "born"),
+        ("Action 3 Finish[Germany]", ActionType.FINISH, "Germany"),
         ('Finish[answer="1879"]', ActionType.FINISH, "1879"),
     ],
 )
@@ -55,6 +57,16 @@ def test_parse_react_output_extracts_thought_and_action() -> None:
     )
     assert thought == "I should find Einstein's page."
     assert action.action_type is ActionType.SEARCH
+
+
+def test_parse_react_output_accepts_paper_style_numbered_labels() -> None:
+    thought, action = parse_react_output(
+        "Thought 4: Search the United States article.\n"
+        "Action 4: Search[High Plains (United States)]"
+    )
+    assert thought == "Search the United States article."
+    assert action.action_type is ActionType.SEARCH
+    assert action.argument == "High Plains (United States)"
 
 
 def test_parse_react_output_tolerates_action_only() -> None:
