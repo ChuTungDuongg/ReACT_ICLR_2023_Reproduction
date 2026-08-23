@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/Paper-ICLR%202023-6f42c1" alt="ICLR 2023 paper">
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Status-Sprint%204%20%2B%20Hybrids-238636" alt="Sprint 4 plus hybrid methods">
-  <img src="https://img.shields.io/badge/Tests-67%20Passing-18A0AE" alt="67 tests passing">
+  <img src="https://img.shields.io/badge/Tests-68%20Passing-18A0AE" alt="68 tests passing">
   <img src="https://img.shields.io/badge/Interface-main.py-102A43" alt="CLI first">
 </p>
 
@@ -214,16 +214,20 @@ prints every CoT sample and every ReAct step.
 
 Useful overrides include `--device auto|cpu|cuda|mps`, `--max-agent-steps`,
 `--max-new-tokens`, `--temperature`, `--top-p`, `--cot-sc-samples`,
-`--cot-sc-temperature`, `--log-level`, and `--trust-remote-code`. ReAct uses
-the normal generation temperature (default 0.0); only CoT-SC uses
-`--cot-sc-temperature` (default 0.7).
+`--cot-sc-temperature`, `--react-best-effort-finalization`, `--log-level`, and
+`--trust-remote-code`. ReAct uses the normal generation temperature (default
+0.0); only CoT-SC uses `--cot-sc-temperature` (default 0.7).
 
 Act/ReAct treats `Search` as an article-opening operation for a concise entity
 or title, while `Lookup` reads details inside the current article. A second
 identical `Search` is skipped with a recovery hint; a third is recorded as an
-`action_loop` and the agent uses a remaining turn to `Finish`. The final
-configured agent step is always reserved for a best-effort answer instead of
-spending the full budget on tools and returning an empty prediction.
+`action_loop`. ReAct defaults to the paper-style policy: it may use all seven
+steps and returns an empty prediction if it never emits `Finish`, which is also
+what activates the ReAct → CoT-SC fallback. The same policy is used by
+standalone ReAct and both hybrids for a fair comparison. The optional
+`--react-best-effort-finalization` flag forces a final/recovery `Finish`, but it
+is an experimental override and should not be used when comparing with the
+paper table. Act-only retains its best-effort final step.
 
 `--model` is optional and defaults to `Qwen/Qwen2.5-7B-Instruct`. Standard,
 CoT, Act-only, ReAct, and both hybrids receive the corresponding six-example
@@ -282,7 +286,7 @@ main.py
 │   ├── cli.py                      # Argument parsing and dependency wiring
 │   ├── config.py                   # Typed YAML/environment configuration
 │   └── logging_utils.py            # UTF-8 live stdout + run.log
-└── tests/                           # 67 deterministic tests
+└── tests/                           # 68 deterministic tests
 ```
 
 Each first-level directory has its own README:
@@ -337,7 +341,7 @@ python main.py --help
 python main.py doctor
 ```
 
-The 67-test suite is offline/model-free and covers configuration/CLI smoke,
+The 68-test suite is offline/model-free and covers configuration/CLI smoke,
 seeded HotpotQA loading, official answer/supporting-fact/joint metrics, Hugging Face agent wiring,
 six-example paper prompt packs, numbered-label parsing, Standard/CoT parsing,
 Wikipedia Search/Lookup/Finish, ambiguity, repeated

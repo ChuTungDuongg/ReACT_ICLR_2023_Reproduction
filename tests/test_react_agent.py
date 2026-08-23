@@ -85,6 +85,7 @@ def test_react_agent_rejects_tool_action_on_forced_final_step() -> None:
         GenerationConfig(max_new_tokens=32),
         WikipediaEnvironment(FakeWikipediaClient(), max_steps=2),
         max_steps=2,
+        best_effort_finalization=True,
     )
 
     result = agent.predict(BenchmarkExample("1", "When?", "1879"))
@@ -109,6 +110,7 @@ def test_react_agent_uses_final_step_for_best_effort_answer() -> None:
         GenerationConfig(max_new_tokens=32),
         WikipediaEnvironment(FakeWikipediaClient(), max_steps=2),
         max_steps=2,
+        best_effort_finalization=True,
     )
 
     result = agent.predict(BenchmarkExample("1", "When?", "1879"))
@@ -134,6 +136,7 @@ def test_react_agent_forces_finish_after_action_loop() -> None:
         GenerationConfig(max_new_tokens=32),
         WikipediaEnvironment(FakeWikipediaClient(), max_steps=5),
         max_steps=5,
+        best_effort_finalization=True,
     )
 
     result = agent.predict(BenchmarkExample("1", "When?", "1879"))
@@ -146,7 +149,7 @@ def test_react_agent_forces_finish_after_action_loop() -> None:
     assert "final allowed step" in llm.prompts[3]
 
 
-def test_react_agent_can_disable_best_effort_for_paper_hybrid_fallback() -> None:
+def test_react_agent_defaults_to_paper_style_without_forced_finalization() -> None:
     llm = ScriptedLLM(
         [
             "Thought: Search.\nAction: Search[Albert Einstein]",
@@ -158,7 +161,6 @@ def test_react_agent_can_disable_best_effort_for_paper_hybrid_fallback() -> None
         GenerationConfig(max_new_tokens=32),
         WikipediaEnvironment(FakeWikipediaClient(), max_steps=2),
         max_steps=2,
-        best_effort_finalization=False,
     )
 
     result = agent.predict(BenchmarkExample("1", "When?", "1879"))

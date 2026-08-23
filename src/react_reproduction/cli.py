@@ -69,6 +69,14 @@ def build_parser(project_root: Path) -> argparse.ArgumentParser:
     benchmark.add_argument("--max-new-tokens", type=_positive_int)
     benchmark.add_argument("--max-agent-steps", type=_positive_int)
     benchmark.add_argument(
+        "--react-best-effort-finalization",
+        action="store_true",
+        help=(
+            "Force ReAct to spend its final/recovery turn on Finish. Disabled "
+            "by default for paper-style evaluation."
+        ),
+    )
+    benchmark.add_argument(
         "--cot-sc-samples",
         type=_positive_int,
         default=21,
@@ -178,6 +186,12 @@ def _run_benchmark(
         raise ValueError("Only HotpotQA is implemented through Sprint 4; FEVER is Sprint 6.")
     if args.method not in set(METHODS):
         raise ValueError(f"Method {args.method!r} is not implemented.")
+    react_methods = {"react", "react-cot-sc", "cot-sc-react"}
+    if args.react_best_effort_finalization and args.method not in react_methods:
+        raise ValueError(
+            "--react-best-effort-finalization only applies to methods that "
+            "contain ReAct."
+        )
 
     num_samples = args.num_samples or config.benchmark.num_samples
     seed = args.seed if args.seed is not None else config.benchmark.seed
@@ -191,6 +205,18 @@ def _run_benchmark(
         top_p=args.top_p if args.top_p is not None else config.generation.top_p,
         max_new_tokens=args.max_new_tokens or config.generation.max_new_tokens,
     )
+    method_settings: dict[str, object] = {}
+    if args.method in {"react-cot-sc", "cot-sc-react"}:
+        method_settings.update(
+            cot_sc_samples=args.cot_sc_samples,
+            cot_sc_temperature=args.cot_sc_temperature,
+            cot_sc_fallback_threshold=args.cot_sc_samples / 2,
+        )
+    if args.method in react_methods:
+        method_settings["react_best_effort_finalization"] = (
+            args.react_best_effort_finalization
+        )
+
     run_config = BenchmarkRunConfig(
         model=args.model,
         dataset=(
@@ -203,15 +229,7 @@ def _run_benchmark(
         seed=seed,
         generation=asdict(generation),
         max_agent_steps=max_agent_steps,
-        method_settings=(
-            {
-                "cot_sc_samples": args.cot_sc_samples,
-                "cot_sc_temperature": args.cot_sc_temperature,
-                "cot_sc_fallback_threshold": args.cot_sc_samples / 2,
-            }
-            if args.method in {"react-cot-sc", "cot-sc-react"}
-            else {}
-        ),
+        method_settings=method_settings,
         device=args.device,
     )
     artifacts = create_run_artifacts(
@@ -282,6 +300,7 @@ def _run_benchmark(
                 generation,
                 environment,
                 max_steps=max_agent_steps,
+                best_effort_finalization=args.react_best_effort_finalization,
             )
         else:
             from react_reproduction.agents.cot_sc import CoTSCAgent
@@ -306,7 +325,7 @@ def _run_benchmark(
                 generation,
                 environment,
                 max_steps=max_agent_steps,
-                best_effort_finalization=False,
+                best_effort_finalization=args.react_best_effort_finalization,
             )
             agent = (
                 ReActThenCoTSCAgent(react_agent, cot_sc_agent)

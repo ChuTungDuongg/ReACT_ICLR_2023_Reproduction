@@ -39,6 +39,25 @@ def test_benchmark_defaults_to_qwen_7b() -> None:
     assert args.model == DEFAULT_MODEL == "Qwen/Qwen2.5-7B-Instruct"
 
 
+def test_react_best_effort_finalization_is_explicitly_opt_in() -> None:
+    default_args = build_parser(PROJECT_ROOT).parse_args(
+        ["benchmark", "--task", "hotpotqa", "--method", "react"]
+    )
+    opted_in_args = build_parser(PROJECT_ROOT).parse_args(
+        [
+            "benchmark",
+            "--task",
+            "hotpotqa",
+            "--method",
+            "react",
+            "--react-best-effort-finalization",
+        ]
+    )
+
+    assert default_args.react_best_effort_finalization is False
+    assert opted_in_args.react_best_effort_finalization is True
+
+
 @pytest.mark.parametrize("method", ["react-cot-sc", "cot-sc-react"])
 def test_hybrid_methods_expose_paper_cot_sc_defaults(method: str) -> None:
     args = build_parser(PROJECT_ROOT).parse_args(

@@ -61,8 +61,9 @@ confidence, nhánh được chọn và trạng thái fallback.
 - `Search` trùng lần hai không gọi Wikipedia lại mà trả hướng dẫn chuyển sang
   `Lookup`, một entity khác hoặc `Finish`; lần ba mới ghi nhận `action_loop`.
 - `Lookup` giống nhau vẫn được phép lặp để lấy câu khớp tiếp theo.
-- Nếu gặp `action_loop` khi còn budget, agent dành lượt kế tiếp để tạo
-  `Finish[best answer]`; bước cuối của budget cũng luôn dành cho `Finish`.
+- ReAct standalone và ReAct trong hybrid mặc định cùng dùng policy paper-style:
+  không ép đáp án sau loop hay ở bước cuối. CLI chỉ bật best-effort khi người
+  dùng yêu cầu rõ; Act-only vẫn bật policy này mặc định.
 - Hết budget bị chặn bằng `max_steps_exceeded`.
 
 ## Quy tắc khi sửa source

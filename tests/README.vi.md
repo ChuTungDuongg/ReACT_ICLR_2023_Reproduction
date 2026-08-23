@@ -2,7 +2,7 @@
 
 > 🌐 **Ngôn ngữ:** [English](README.md) | Tiếng Việt
 
-Repository hiện có **67 tests**. Unit tests không tải LLM và không gọi
+Repository hiện có **68 tests**. Unit tests không tải LLM và không gọi
 Wikipedia thật; chúng dùng scripted LLM, dữ liệu inject và fake Wikipedia
 client để kiểm tra đúng control flow với tốc độ nhanh, ổn định.
 

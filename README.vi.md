@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/Paper-ICLR%202023-6f42c1" alt="Paper ICLR 2023">
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Trạng_thái-Sprint%204%20%2B%20Hybrid-238636" alt="Sprint 4 và các phương pháp hybrid">
-  <img src="https://img.shields.io/badge/Tests-67%20PASS-18A0AE" alt="67 tests PASS">
+  <img src="https://img.shields.io/badge/Tests-68%20PASS-18A0AE" alt="68 tests PASS">
   <img src="https://img.shields.io/badge/Điểm_vào-main.py-102A43" alt="Chạy bằng main.py">
 </p>
 
@@ -218,16 +218,19 @@ Các tham số hữu ích:
 | `--max-new-tokens 256` | Số token sinh tối đa trong một lượt |
 | `--cot-sc-samples 21` | Số CoT samples dùng để majority vote |
 | `--cot-sc-temperature 0.7` | Sampling temperature riêng của CoT-SC |
+| `--react-best-effort-finalization` | Ép ReAct dùng lượt cuối/recovery để `Finish` (không phải mặc định paper) |
 | `--show-trajectories` | In từng Thought/Action/Observation |
 | `--log-level INFO` | Mức chi tiết của log |
 
 Act/ReAct coi `Search` là thao tác mở bài theo entity/title, không phải web
 search. `Lookup` đọc chi tiết trong bài hiện tại. `Search` giống hệt lần hai sẽ
-bị bỏ qua kèm hướng dẫn recovery; lần ba được ghi nhận là `action_loop` và agent
-dùng lượt còn lại để `Finish`. Bước cuối trong `--max-agent-steps` luôn được dành
-cho một câu trả lời best-effort thay vì tiếp tục gọi tool rồi trả prediction
-rỗng. ReAct trong hai hybrid tắt best-effort này để failure thực sự kích hoạt
-fallback đúng theo paper.
+bị bỏ qua kèm hướng dẫn recovery; lần ba được ghi nhận là `action_loop`. ReAct
+mặc định dùng policy đúng paper: có thể dùng đủ bảy bước và trả prediction rỗng
+nếu không sinh `Finish`; đây cũng là điều kích hoạt fallback ReAct → CoT-SC.
+ReAct standalone và ReAct trong cả hai hybrid dùng cùng policy để so sánh công
+bằng. Cờ tùy chọn `--react-best-effort-finalization` ép một lượt cuối/recovery
+để `Finish`, nhưng đây là override thử nghiệm và không nên dùng khi đối chiếu
+bảng paper. Act-only vẫn giữ bước cuối best-effort.
 
 <a id="cách-hoạt-động"></a>
 
@@ -293,7 +296,7 @@ main.py
 │   ├── cli.py                      # Khai báo command và kết nối component
 │   ├── config.py                   # Đọc, kiểm tra YAML và biến môi trường
 │   └── logging_utils.py            # Live stdout UTF-8 và run.log
-└── tests/                           # 67 unit/integration-style tests
+└── tests/                           # 68 unit/integration-style tests
 ```
 
 README tiếng Việt của từng thư mục:
@@ -354,7 +357,7 @@ python main.py --help
 python main.py doctor
 ```
 
-67 tests hiện tại kiểm tra:
+68 tests hiện tại kiểm tra:
 
 - CLI, cấu hình và `doctor`;
 - HotpotQA loading, validation và sampling theo seed;

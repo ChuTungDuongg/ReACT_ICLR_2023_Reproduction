@@ -42,6 +42,8 @@ phase labels and prediction metadata records vote confidence and selected path.
 For Act/ReAct, `Search` accepts a concise entity or page title while `Lookup`
 reads matching sentences inside the open article. A second identical `Search`
 is skipped with a recovery hint; a third is classified as `action_loop`.
-Repeated `Lookup` remains valid because it advances through matches. If a loop
-is detected with budget remaining, the next turn is forced to `Finish`, and the
-last configured agent step is always reserved for a best-effort final answer.
+Repeated `Lookup` remains valid because it advances through matches. ReAct uses
+paper-style termination by default in standalone and hybrid modes: no forced
+answer is added after a loop or at the step limit. The CLI can explicitly opt
+all ReAct legs into best-effort finalization; Act-only retains that behavior by
+default.

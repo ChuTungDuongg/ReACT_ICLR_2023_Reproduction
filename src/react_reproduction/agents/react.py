@@ -25,7 +25,7 @@ class ReActAgent(BaseAgent):
         environment: WikipediaEnvironment,
         *,
         max_steps: int,
-        best_effort_finalization: bool = True,
+        best_effort_finalization: bool = False,
     ) -> None:
         if max_steps <= 0:
             raise ValueError("max_steps must be positive.")
