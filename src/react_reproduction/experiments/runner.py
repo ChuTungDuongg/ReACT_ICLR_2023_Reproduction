@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Protocol, Sequence
 
+from react_reproduction import __version__
 from react_reproduction.agents.base import AgentResult
 from react_reproduction.datasets.base import BenchmarkExample
 from react_reproduction.evaluation.metrics import (
@@ -75,6 +76,7 @@ class BenchmarkRunConfig:
     generation: Mapping[str, Any]
     max_agent_steps: int
     device: str = "auto"
+    code_version: str = __version__
     timestamp: str = field(default_factory=lambda: _utc_now().isoformat())
 
     def __post_init__(self) -> None:
@@ -223,16 +225,20 @@ def run_hotpotqa_benchmark(
                 if step.observation:
                     active_logger.info("Observation: %s", step.observation)
                 active_logger.info("Model output: %s", step.model_output)
-        active_logger.info("Prediction: %s", output.prediction)
+        displayed_prediction = output.prediction or "<EMPTY>"
+        active_logger.info("Prediction: %s", displayed_prediction)
         active_logger.info("Gold: %s", example.gold_answer)
         active_logger.info(
-            "Answer metrics | EM: %.4f | F1: %.4f | Precision: %.4f | Recall: %.4f",
+            "Answer | EM: %.4f | F1: %.4f",
             float(answer_em),
             answer_f1,
+        )
+        active_logger.debug(
+            "Answer detail | Precision: %.4f | Recall: %.4f",
             answer_precision,
             answer_recall,
         )
-        active_logger.info(
+        active_logger.debug(
             "Supporting-fact metrics | EM: %.4f | F1: %.4f | Precision: %.4f | "
             "Recall: %.4f | Predicted: %d | Gold: %d",
             supporting_fact_em,
@@ -242,7 +248,7 @@ def run_hotpotqa_benchmark(
             len(predicted_supporting_facts),
             len(gold_supporting_facts),
         )
-        active_logger.info(
+        active_logger.debug(
             "Joint metrics | EM: %.4f | F1: %.4f | Precision: %.4f | Recall: %.4f",
             joint_em,
             joint_f1,
@@ -250,9 +256,11 @@ def run_hotpotqa_benchmark(
             joint_recall,
         )
         active_logger.info(
-            "Correct: %s | Running EM: %.2f%% | Steps: %d | Tool calls: %d | Latency: %.3fs",
+            "Result | Correct: %s | Running EM: %.2f%% | Termination: %s | "
+            "Steps: %d | Tool calls: %d | Latency: %.3fs",
             correct,
             100.0 * running_correct / index,
+            output.termination_reason,
             output.steps,
             output.tool_calls,
             latency,

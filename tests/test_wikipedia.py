@@ -31,11 +31,14 @@ def test_search_sets_current_article_and_lookup_advances() -> None:
     search = environment.execute(ToolAction(ActionType.SEARCH, "Albert Einstein"))
     first_lookup = environment.execute(ToolAction(ActionType.LOOKUP, "born"))
     second_lookup = environment.execute(ToolAction(ActionType.LOOKUP, "born"))
+    third_lookup = environment.execute(ToolAction(ActionType.LOOKUP, "born"))
 
     assert "Opened 'Albert Einstein'" in search.observation
     assert environment.current_article is not None
     assert "German-born" in first_lookup.observation
     assert "Ulm in 1879" in second_lookup.observation
+    assert "No more matches" in third_lookup.observation
+    assert third_lookup.terminated is False
 
 
 def test_missing_article_returns_clear_observation() -> None:
@@ -53,9 +56,13 @@ def test_repeated_action_terminates_as_loop() -> None:
     )
     action = ToolAction(ActionType.SEARCH, "Albert Einstein")
     environment.execute(action)
-    environment.execute(action)
+    recovery = environment.execute(action)
     result = environment.execute(action)
 
+    assert recovery.terminated is False
+    assert recovery.tool_called is False
+    assert "Repeated Search ignored" in recovery.observation
+    assert "Lookup[short literal keyword]" in recovery.observation
     assert result.terminated is True
     assert result.termination_reason == "action_loop"
 

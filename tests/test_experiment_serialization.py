@@ -44,7 +44,7 @@ def test_mock_benchmark_serializes_config_metrics_and_predictions() -> None:
     predictor = MockPredictor(
         {
             "example-1": "answer",
-            "example-2": "Munich",
+            "example-2": "",
         }
     )
     config = BenchmarkRunConfig(
@@ -80,6 +80,7 @@ def test_mock_benchmark_serializes_config_metrics_and_predictions() -> None:
 
         assert serialized_config["seed"] == 42
         assert serialized_config["model"] == "mock"
+        assert serialized_config["code_version"] == "0.7.0"
         assert serialized_metrics["exact_match"] == 0.5
         assert serialized_metrics["f1"] == 0.5
         assert serialized_metrics["precision"] == 0.5
@@ -108,6 +109,8 @@ def test_mock_benchmark_serializes_config_metrics_and_predictions() -> None:
         assert log_text.index("Question: First question?") < log_text.index(
             "Prediction: answer"
         )
+        assert "Prediction: <EMPTY>" in log_text
+        assert "Termination: mock_completed" in log_text
         assert "=== FINAL HOTPOTQA METRICS ===" in log_text
         assert "metric.em=0.500000" in log_text
         assert "metric.sp_f1=0.000000" in log_text

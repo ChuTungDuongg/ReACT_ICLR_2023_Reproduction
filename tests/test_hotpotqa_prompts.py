@@ -60,3 +60,26 @@ def test_interactive_prompts_number_the_next_paper_style_step() -> None:
     assert "Action 2: <one Search, Lookup, or Finish action>" in act_prompt
     assert "Observation 1: Opened 'Albert Einstein'." in react_prompt
     assert "Thought 2: <brief reasoning about the next action>" in react_prompt
+
+
+def test_interactive_prompts_explain_search_lookup_strategy() -> None:
+    prompts = (
+        build_act_prompt("When?", ()),
+        build_react_prompt("When?", ()),
+    )
+
+    for prompt in prompts:
+        assert "Search is not a general web search" in prompt
+        assert "Never repeat an identical Search" in prompt
+        assert "Lookup with a short literal keyword" in prompt
+        assert "Do not answer yes/no unless the question is" in prompt
+
+
+def test_interactive_prompts_can_force_a_final_answer() -> None:
+    act_prompt = build_act_prompt("When?", (), force_finish=True)
+    react_prompt = build_react_prompt("When?", (), force_finish=True)
+
+    assert "final allowed step" in act_prompt
+    assert "Action 1: Finish[<best answer>]" in act_prompt
+    assert "final allowed step" in react_prompt
+    assert "Action 1: Finish[<best concise answer>]" in react_prompt

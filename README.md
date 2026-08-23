@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/Paper-ICLR%202023-6f42c1" alt="ICLR 2023 paper">
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Status-Sprint%204%20Complete-238636" alt="Sprint 4 complete">
-  <img src="https://img.shields.io/badge/Tests-48%20Passing-18A0AE" alt="48 tests passing">
+  <img src="https://img.shields.io/badge/Tests-53%20Passing-18A0AE" alt="53 tests passing">
   <img src="https://img.shields.io/badge/Interface-main.py-102A43" alt="CLI first">
 </p>
 
@@ -105,9 +105,13 @@ Then run the requested five-sample benchmark:
   stops with a validation error.
 - Use 5 examples for a smoke test, 20-50 for prompt/failure inspection, and only
   start 100/500+ runs after validating runtime and MediaWiki reliability.
-- Do not add `--quiet` when running in Colab. Per-example answer/supporting-fact/
-  joint metrics, all 12 final official HotpotQA metrics, and operational metrics
-  are streamed to the cell and copied to `run.log`.
+- Do not add `--quiet` when running in Colab. Each example prints a compact
+  prediction, gold answer, Answer EM/F1, termination reason, and operational
+  summary. All 12 official HotpotQA metrics are still printed at the end and
+  saved to `metrics.json`/`run.log`.
+- Empty predictions are displayed as `<EMPTY>`. Per-example supporting-fact and
+  joint details are available with `--log-level DEBUG`, since this milestone
+  does not yet emit evidence pairs.
 - Before processing each example, the log prints its progress, `example_id`, and
   question so the active sample is immediately visible in Colab.
 - `metrics.json` contains answer `EM/F1/precision/recall`, supporting-fact
@@ -171,6 +175,13 @@ Useful overrides include `--device auto|cpu|cuda|mps`, `--max-agent-steps`,
 `--trust-remote-code`. The default deterministic generation uses temperature
 `0.0`, top-p `1.0`, and seed `42`.
 
+Act/ReAct treats `Search` as an article-opening operation for a concise entity
+or title, while `Lookup` reads details inside the current article. A second
+identical `Search` is skipped with a recovery hint; a third is recorded as an
+`action_loop` and the agent uses a remaining turn to `Finish`. The final
+configured agent step is always reserved for a best-effort answer instead of
+spending the full budget on tools and returning an empty prediction.
+
 `--model` is optional and defaults to `Qwen/Qwen2.5-7B-Instruct`. Standard,
 CoT, Act-only, and ReAct each receive their corresponding six-example prompt
 ablation from Appendix C.1; the target example still contains only its question.
@@ -225,7 +236,7 @@ main.py
 │   ├── cli.py                      # Argument parsing and dependency wiring
 │   ├── config.py                   # Typed YAML/environment configuration
 │   └── logging_utils.py            # UTF-8 live stdout + run.log
-└── tests/                           # 48 deterministic tests
+└── tests/                           # 53 deterministic tests
 ```
 
 Each first-level directory has its own README:
@@ -279,7 +290,7 @@ python main.py --help
 python main.py doctor
 ```
 
-The 48-test suite is offline/model-free and covers configuration/CLI smoke,
+The 53-test suite is offline/model-free and covers configuration/CLI smoke,
 seeded HotpotQA loading, official answer/supporting-fact/joint metrics, Hugging Face agent wiring,
 six-example paper prompt packs, numbered-label parsing, Standard/CoT parsing,
 Wikipedia Search/Lookup/Finish, ambiguity, repeated

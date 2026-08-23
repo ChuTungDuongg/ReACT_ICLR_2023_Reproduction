@@ -32,3 +32,10 @@ CLI → HotpotQA → Hugging Face model → agent
 The implementation is complete through Sprint 4. Qwen2.5-7B-Instruct is the
 CLI default model. Keep model/network work lazy, keep the core loops
 framework-free, and preserve deterministic seeded behavior.
+
+For Act/ReAct, `Search` accepts a concise entity or page title while `Lookup`
+reads matching sentences inside the open article. A second identical `Search`
+is skipped with a recovery hint; a third is classified as `action_loop`.
+Repeated `Lookup` remains valid because it advances through matches. If a loop
+is detected with budget remaining, the next turn is forced to `Finish`, and the
+last configured agent step is always reserved for a best-effort final answer.

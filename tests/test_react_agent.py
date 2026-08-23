@@ -73,14 +73,15 @@ def test_react_agent_recovers_from_one_parsing_error() -> None:
     assert "Invalid action format" in (result.trajectory[0].observation or "")
 
 
-def test_react_agent_stops_at_max_steps() -> None:
+def test_react_agent_rejects_tool_action_on_forced_final_step() -> None:
+    llm = ScriptedLLM(
+        [
+            "Thought: Search once.\nAction: Search[Albert Einstein]",
+            "Thought: Search again.\nAction: Search[Albert Einstein]",
+        ]
+    )
     agent = ReActAgent(
-        ScriptedLLM(
-            [
-                "Thought: Search once.\nAction: Search[Albert Einstein]",
-                "Thought: Search again.\nAction: Search[Albert Einstein]",
-            ]
-        ),
+        llm,
         GenerationConfig(max_new_tokens=32),
         WikipediaEnvironment(FakeWikipediaClient(), max_steps=2),
         max_steps=2,
@@ -90,4 +91,56 @@ def test_react_agent_stops_at_max_steps() -> None:
 
     assert result.prediction == ""
     assert result.steps == 2
-    assert result.termination_reason == "max_steps_exceeded"
+    assert result.tool_calls == 1
+    assert result.termination_reason == "finalization_failed"
+    assert "final allowed step" in llm.prompts[1]
+    assert "tool action was not executed" in (result.trajectory[1].observation or "")
+
+
+def test_react_agent_uses_final_step_for_best_effort_answer() -> None:
+    llm = ScriptedLLM(
+        [
+            "Thought: Find Einstein.\nAction: Search[Albert Einstein]",
+            "Thought: The evidence says 1879.\nAction: Finish[1879]",
+        ]
+    )
+    agent = ReActAgent(
+        llm,
+        GenerationConfig(max_new_tokens=32),
+        WikipediaEnvironment(FakeWikipediaClient(), max_steps=2),
+        max_steps=2,
+    )
+
+    result = agent.predict(BenchmarkExample("1", "When?", "1879"))
+
+    assert result.prediction == "1879"
+    assert result.steps == 2
+    assert result.tool_calls == 1
+    assert result.termination_reason == "completed_at_step_limit"
+    assert "Action 2: Finish[<best concise answer>]" in llm.prompts[1]
+
+
+def test_react_agent_forces_finish_after_action_loop() -> None:
+    llm = ScriptedLLM(
+        [
+            "Thought: Search.\nAction: Search[Albert Einstein]",
+            "Thought: Repeat.\nAction: Search[Albert Einstein]",
+            "Thought: Repeat again.\nAction: Search[Albert Einstein]",
+            "Thought: Give the best answer.\nAction: Finish[1879]",
+        ]
+    )
+    agent = ReActAgent(
+        llm,
+        GenerationConfig(max_new_tokens=32),
+        WikipediaEnvironment(FakeWikipediaClient(), max_steps=5),
+        max_steps=5,
+    )
+
+    result = agent.predict(BenchmarkExample("1", "When?", "1879"))
+
+    assert result.prediction == "1879"
+    assert result.steps == 4
+    assert result.tool_calls == 1
+    assert result.termination_reason == "completed_after_action_loop"
+    assert "Repeated Search ignored" in (result.trajectory[1].observation or "")
+    assert "final allowed step" in llm.prompts[3]

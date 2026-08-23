@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/Paper-ICLR%202023-6f42c1" alt="Paper ICLR 2023">
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Trạng_thái-Hoàn%20tất%20Sprint%204-238636" alt="Hoàn tất Sprint 4">
-  <img src="https://img.shields.io/badge/Tests-48%20PASS-18A0AE" alt="48 tests PASS">
+  <img src="https://img.shields.io/badge/Tests-53%20PASS-18A0AE" alt="53 tests PASS">
   <img src="https://img.shields.io/badge/Điểm_vào-main.py-102A43" alt="Chạy bằng main.py">
 </p>
 
@@ -112,9 +112,11 @@ Sau đó chạy ReAct với 5 mẫu HotpotQA:
   validation.
 - Nên dùng 5 mẫu để smoke test, 20-50 mẫu để kiểm tra prompt/failure, và chỉ
   chạy 100/500+ sau khi đã xác nhận runtime cùng độ ổn định của MediaWiki.
-- Không thêm `--quiet` trên Colab. Metrics của từng example, toàn bộ 12 official
-  HotpotQA metrics và operational metrics cuối run sẽ hiện trên cell, đồng thời
-  được lưu vào `run.log`.
+- Không thêm `--quiet` trên Colab. Mỗi example hiện prediction, gold, Answer
+  EM/F1, termination reason và operational metrics dạng gọn; toàn bộ 12 official
+  HotpotQA metrics vẫn hiện cuối run và được lưu vào `metrics.json`/`run.log`.
+- Prediction rỗng được ghi rõ là `<EMPTY>`. Supporting-fact/Joint chi tiết chỉ
+  hiện với `--log-level DEBUG` vì milestone hiện tại chưa sinh evidence.
 - Trước khi xử lý từng example, log hiển thị progress, `example_id` và câu hỏi
   để sample đang chạy luôn được nhận biết ngay trên Colab.
 - `metrics.json` chứa answer `EM/F1/precision/recall`, supporting-fact
@@ -173,6 +175,12 @@ Các tham số hữu ích:
 | `--max-agent-steps 7` | Số bước tối đa của Act/ReAct |
 | `--max-new-tokens 256` | Số token sinh tối đa trong một lượt |
 | `--show-trajectories` | In từng Thought/Action/Observation |
+
+Act/ReAct coi `Search` là thao tác mở bài theo entity/title, không phải web
+search. `Lookup` đọc chi tiết trong bài hiện tại. `Search` giống hệt lần hai sẽ
+bị bỏ qua kèm hướng dẫn recovery; lần ba được ghi nhận là `action_loop` và agent
+dùng lượt còn lại để `Finish`. Bước cuối trong `--max-agent-steps` luôn được dành
+cho một câu trả lời best-effort thay vì tiếp tục gọi tool rồi trả prediction rỗng.
 | `--log-level INFO` | Mức chi tiết của log |
 
 <a id="cách-hoạt-động"></a>
@@ -233,7 +241,7 @@ main.py
 │   ├── cli.py                      # Khai báo command và kết nối component
 │   ├── config.py                   # Đọc, kiểm tra YAML và biến môi trường
 │   └── logging_utils.py            # Live stdout UTF-8 và run.log
-└── tests/                           # 48 unit/integration-style tests
+└── tests/                           # 53 unit/integration-style tests
 ```
 
 README tiếng Việt của từng thư mục:
@@ -292,7 +300,7 @@ python main.py --help
 python main.py doctor
 ```
 
-48 tests hiện tại kiểm tra:
+53 tests hiện tại kiểm tra:
 
 - CLI, cấu hình và `doctor`;
 - HotpotQA loading, validation và sampling theo seed;

@@ -194,6 +194,7 @@ def _run_benchmark(
         quiet=args.quiet,
     )
     logger.info("Starting benchmark: task=%s method=%s", args.task, args.method)
+    logger.info("Code version: %s", __version__)
     logger.info("Run directory: %s", artifacts.run_directory)
     cache_dir = project_root / "cache" / "huggingface"
     _configure_huggingface_cache(cache_dir)

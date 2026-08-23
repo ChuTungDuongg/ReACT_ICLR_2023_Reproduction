@@ -2,7 +2,7 @@
 
 > 🌐 **Language:** English | [Tiếng Việt](README.vi.md)
 
-The 48-test suite is deterministic and does not download a model or call live
+The 53-test suite is deterministic and does not download a model or call live
 Wikipedia. Scripted LLMs, injected datasets, and a fake Wikipedia client cover
 the same control flow used by real runs.
 

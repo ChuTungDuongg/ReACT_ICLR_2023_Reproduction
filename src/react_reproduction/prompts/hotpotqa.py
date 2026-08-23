@@ -36,7 +36,12 @@ Thought: <step-by-step multi-hop reasoning>
 Answer: <concise answer>"""
 
 
-def build_act_prompt(question: str, trajectory: Sequence[TrajectoryStep]) -> str:
+def build_act_prompt(
+    question: str,
+    trajectory: Sequence[TrajectoryStep],
+    *,
+    force_finish: bool = False,
+) -> str:
     history_lines: list[str] = []
     for step in trajectory:
         if step.action:
@@ -45,12 +50,33 @@ def build_act_prompt(question: str, trajectory: Sequence[TrajectoryStep]) -> str
             history_lines.append(f"Observation {step.step_index}: {step.observation}")
     history = "\n".join(history_lines) or "(no previous actions)"
     next_step = len(trajectory) + 1
+    next_action_instruction = (
+        "This is the final allowed step. Do not call Search or Lookup. "
+        "Use the available evidence and return exactly one concise "
+        f"Finish action now:\nAction {next_step}: Finish[<best answer>]"
+        if force_finish
+        else (
+            "Return exactly one line now:\n"
+            f"Action {next_step}: <one Search, Lookup, or Finish action>"
+        )
+    )
     return f"""Answer HotpotQA questions with Wikipedia actions and no explicit thoughts. Follow the six manually composed Act examples from Appendix C.1 of the ReAct paper.
 
 Available actions:
-- Search[entity]: open a relevant Wikipedia article.
-- Lookup[text]: find the next matching sentence in the current article.
+- Search[entity]: open a Wikipedia article by concise entity or page title.
+- Lookup[text]: find the next sentence containing literal text in the current article.
 - Finish[answer]: return the concise final answer.
+
+Tool strategy:
+- Search is not a general web search. Never put a full question or an attribute
+  query such as "entity founding year" inside Search.
+- Once the relevant article is open, use Lookup with a short literal keyword
+  such as "founded", "members", "born", or "also known" to find a detail.
+- If Search lists the desired article as a candidate, Search its exact title.
+- Never repeat an identical Search. Simplify to a canonical entity, switch to
+  Lookup, choose a different candidate, or Finish.
+- Match the requested answer type. Do not answer yes/no unless the question is
+  yes/no, and Finish as soon as the observations support a concise answer.
 
 {ACT_FEW_SHOT}
 
@@ -59,11 +85,15 @@ Question: {question}
 Previous action history:
 {history}
 
-Do not output Thought or Reasoning. Return exactly one line now:
-Action {next_step}: <one Search, Lookup, or Finish action>"""
+Do not output Thought or Reasoning. {next_action_instruction}"""
 
 
-def build_react_prompt(question: str, trajectory: Sequence[TrajectoryStep]) -> str:
+def build_react_prompt(
+    question: str,
+    trajectory: Sequence[TrajectoryStep],
+    *,
+    force_finish: bool = False,
+) -> str:
     history_lines: list[str] = []
     for step in trajectory:
         if step.thought:
@@ -74,12 +104,35 @@ def build_react_prompt(question: str, trajectory: Sequence[TrajectoryStep]) -> s
             history_lines.append(f"Observation {step.step_index}: {step.observation}")
     history = "\n".join(history_lines) or "(no previous steps)"
     next_step = len(trajectory) + 1
+    next_action_instruction = (
+        "This is the final allowed step. Do not call Search or Lookup. Use the "
+        "available evidence, make the best supported choice, and return "
+        f"Finish now:\nThought {next_step}: <brief final reasoning>\n"
+        f"Action {next_step}: Finish[<best concise answer>]"
+        if force_finish
+        else (
+            "Return exactly two lines now:\n"
+            f"Thought {next_step}: <brief reasoning about the next action>\n"
+            f"Action {next_step}: <one Search, Lookup, or Finish action>"
+        )
+    )
     return f"""Answer HotpotQA questions by interleaving reasoning and Wikipedia actions. Follow the six manually composed ReAct examples from Appendix C.1 of the ReAct paper.
 
 Available actions:
-- Search[entity]: open a relevant Wikipedia article.
-- Lookup[text]: find the next matching sentence in the current article.
+- Search[entity]: open a Wikipedia article by concise entity or page title.
+- Lookup[text]: find the next sentence containing literal text in the current article.
 - Finish[answer]: return the concise final answer.
+
+Tool strategy:
+- Search is not a general web search. Never put a full question or an attribute
+  query such as "entity founding year" inside Search.
+- Once the relevant article is open, use Lookup with a short literal keyword
+  such as "founded", "members", "born", or "also known" to find a detail.
+- If Search lists the desired article as a candidate, Search its exact title.
+- Never repeat an identical Search. Simplify to a canonical entity, switch to
+  Lookup, choose a different candidate, or Finish.
+- Match the requested answer type. Do not answer yes/no unless the question is
+  yes/no, and Finish as soon as the observations support a concise answer.
 
 {REACT_FEW_SHOT}
 
@@ -90,6 +143,4 @@ Question: {question}
 Previous trajectory:
 {history}
 
-Return exactly two lines now:
-Thought {next_step}: <brief reasoning about the next action>
-Action {next_step}: <one Search, Lookup, or Finish action>"""
+{next_action_instruction}"""

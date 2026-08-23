@@ -13,7 +13,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 DEFAULT_API_URL = "https://en.wikipedia.org/w/api.php"
 USER_AGENT = (
-    "ReActPaperReproduction/0.6.0 "
+    "ReActPaperReproduction/0.7.0 "
     "(https://github.com/ChuTungDuongg/ReACT_ICLR_2023_Reproduction)"
 )
 
@@ -207,22 +207,50 @@ class WikipediaEnvironment:
             raise RuntimeError("Wikipedia environment is already terminated; call reset().")
 
         canonical = action.canonical.casefold()
-        if canonical == self._last_action:
+        if action.action_type is ActionType.SEARCH and canonical == self._last_action:
             self._consecutive_repeats += 1
-        else:
+        elif action.action_type is ActionType.SEARCH:
             self._last_action = canonical
             self._consecutive_repeats = 1
+        else:
+            # Repeating Lookup is meaningful: it advances to the next matching
+            # sentence. Only identical consecutive Search actions form a loop.
+            self._last_action = None
+            self._consecutive_repeats = 0
+
+        self.steps += 1
 
         if self._consecutive_repeats >= self.max_repeated_actions:
             self.terminated = True
             return ToolExecution(
-                observation=f"Action loop detected for {action.canonical}.",
+                observation=(
+                    f"Action loop detected for {action.canonical}. The repeated "
+                    "search was not executed; make a best-effort Finish action."
+                ),
                 terminated=True,
                 termination_reason="action_loop",
                 tool_called=False,
             )
 
-        self.steps += 1
+        if action.action_type is ActionType.SEARCH and self._consecutive_repeats == 2:
+            article_hint = (
+                f" The current article is '{self.current_article.title}'."
+                if self.current_article is not None
+                else ""
+            )
+            execution = ToolExecution(
+                observation=(
+                    f"Repeated Search ignored for {action.canonical}. Search opens "
+                    f"an article; it does not search inside one.{article_hint} Use "
+                    "Lookup[short literal keyword] for a detail in the current "
+                    "article, Search[a different canonical entity or candidate "
+                    "title] for another article, or Finish[answer]."
+                ),
+                terminated=False,
+                tool_called=False,
+            )
+            return self._apply_step_limit(execution)
+
         if action.action_type is ActionType.FINISH:
             self.terminated = True
             return ToolExecution(
@@ -238,6 +266,9 @@ class WikipediaEnvironment:
         else:
             execution = self._lookup(action.argument)
 
+        return self._apply_step_limit(execution)
+
+    def _apply_step_limit(self, execution: ToolExecution) -> ToolExecution:
         if self.steps >= self.max_steps and not execution.terminated:
             self.terminated = True
             return ToolExecution(

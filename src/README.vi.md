@@ -53,7 +53,11 @@ main.py
 - `Lookup[text]` tìm câu khớp tiếp theo trong bài đang mở.
 - Offset của từng Lookup được lưu để lần gọi sau trả về kết quả tiếp theo.
 - `Finish[answer]` kết thúc example.
-- Action lặp liên tiếp bị chặn bằng `action_loop`.
+- `Search` trùng lần hai không gọi Wikipedia lại mà trả hướng dẫn chuyển sang
+  `Lookup`, một entity khác hoặc `Finish`; lần ba mới ghi nhận `action_loop`.
+- `Lookup` giống nhau vẫn được phép lặp để lấy câu khớp tiếp theo.
+- Nếu gặp `action_loop` khi còn budget, agent dành lượt kế tiếp để tạo
+  `Finish[best answer]`; bước cuối của budget cũng luôn dành cho `Finish`.
 - Hết budget bị chặn bằng `max_steps_exceeded`.
 
 ## Quy tắc khi sửa source
