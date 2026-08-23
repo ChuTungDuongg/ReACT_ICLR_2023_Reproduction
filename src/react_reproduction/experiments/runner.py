@@ -134,6 +134,14 @@ def run_hotpotqa_benchmark(
     running_correct = 0
 
     for index, example in enumerate(examples, start=1):
+        active_logger.info(
+            "[%d/%d] example_id=%s",
+            index,
+            len(examples),
+            example.example_id,
+        )
+        active_logger.info("Question: %s", example.input_text)
+
         example_started = time.perf_counter()
         output = predictor.predict(example)
         latency = time.perf_counter() - example_started
@@ -205,12 +213,6 @@ def run_hotpotqa_benchmark(
                 ),
             )
 
-        active_logger.info(
-            "[%d/%d] example_id=%s",
-            index,
-            len(examples),
-            example.example_id,
-        )
         if show_trajectories:
             for step in output.trajectory:
                 active_logger.info("Step %d", step.step_index)

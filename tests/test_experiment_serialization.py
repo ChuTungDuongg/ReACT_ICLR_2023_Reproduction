@@ -100,10 +100,18 @@ def test_mock_benchmark_serializes_config_metrics_and_predictions() -> None:
         assert json.loads(prediction_lines[0])["gold_supporting_facts"] == [
             ["Article A", 0]
         ]
-        assert "=== FINAL HOTPOTQA METRICS ===" in log_stream.getvalue()
-        assert "metric.em=0.500000" in log_stream.getvalue()
-        assert "metric.sp_f1=0.000000" in log_stream.getvalue()
-        assert "metric.joint_f1=0.000000" in log_stream.getvalue()
+        log_text = log_stream.getvalue()
+        assert "[1/2] example_id=example-1" in log_text
+        assert "Question: First question?" in log_text
+        assert "[2/2] example_id=example-2" in log_text
+        assert "Question: Second question?" in log_text
+        assert log_text.index("Question: First question?") < log_text.index(
+            "Prediction: answer"
+        )
+        assert "=== FINAL HOTPOTQA METRICS ===" in log_text
+        assert "metric.em=0.500000" in log_text
+        assert "metric.sp_f1=0.000000" in log_text
+        assert "metric.joint_f1=0.000000" in log_text
         assert result.artifacts.run_directory.name == "2026-08-23_013000"
     finally:
         for handler in logger.handlers[:]:

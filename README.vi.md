@@ -115,6 +115,8 @@ Sau đó chạy ReAct với 5 mẫu HotpotQA:
 - Không thêm `--quiet` trên Colab. Metrics của từng example, toàn bộ 12 official
   HotpotQA metrics và operational metrics cuối run sẽ hiện trên cell, đồng thời
   được lưu vào `run.log`.
+- Trước khi xử lý từng example, log hiển thị progress, `example_id` và câu hỏi
+  để sample đang chạy luôn được nhận biết ngay trên Colab.
 - `metrics.json` chứa answer `EM/F1/precision/recall`, supporting-fact
   `SP EM/F1/precision/recall`, joint `EM/F1/precision/recall`, evidence coverage,
   runtime, steps/tools trung bình và termination reasons.

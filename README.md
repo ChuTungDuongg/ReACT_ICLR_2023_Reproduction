@@ -108,6 +108,8 @@ Then run the requested five-sample benchmark:
 - Do not add `--quiet` when running in Colab. Per-example answer/supporting-fact/
   joint metrics, all 12 final official HotpotQA metrics, and operational metrics
   are streamed to the cell and copied to `run.log`.
+- Before processing each example, the log prints its progress, `example_id`, and
+  question so the active sample is immediately visible in Colab.
 - `metrics.json` contains answer `EM/F1/precision/recall`, supporting-fact
   `SP EM/F1/precision/recall`, joint `EM/F1/precision/recall`, evidence coverage,
   runtime, average steps/tools, and termination reasons.
