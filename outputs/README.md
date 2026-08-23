@@ -14,8 +14,8 @@ outputs/<task>/<method>/<UTC timestamp>/
 └── run.log
 ```
 
-- `config.json` records the complete run settings.
-- `predictions.jsonl` is appended and flushed after every example.
+- `config.json` records the complete run settings, including `batch_size`.
+- `predictions.jsonl` is appended in dataset order after each completed batch.
 - `trajectories.jsonl` records every model output, Thought, canonical Action,
   and real Observation; it is also flushed per example.
 - `metrics.json` contains all 12 official HotpotQA answer/supporting-fact/joint
@@ -25,6 +25,8 @@ outputs/<task>/<method>/<UTC timestamp>/
 For `react-cot-sc` and `cot-sc-react`, each prediction also records CoT-SC vote
 counts/confidence, the selected path, and whether fallback was used. Hybrid
 trajectory steps include a `phase` field with `react` or `cot_sc`.
+With hybrid batching, an interrupted run can lose only the currently executing
+batch; all earlier batches remain on disk.
 
 The same full final metric set is printed to stdout unless `--quiet` is used.
 When an agent emits no `(title, sentence_id)` evidence pairs, SP/joint metrics

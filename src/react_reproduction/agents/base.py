@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from typing import Any, Mapping
 
@@ -51,3 +52,10 @@ class BaseAgent(ABC):
     @abstractmethod
     def predict(self, example: BenchmarkExample) -> AgentResult:
         """Answer one normalized benchmark example."""
+
+    def predict_batch(
+        self,
+        examples: Sequence[BenchmarkExample],
+    ) -> tuple[AgentResult, ...]:
+        """Answer examples in order, with a sequential compatibility fallback."""
+        return tuple(self.predict(example) for example in examples)

@@ -1,3 +1,3 @@
 """Research tooling for the ReAct ICLR 2023 reproduction study."""
 
-__version__ = "0.8.1"
+__version__ = "0.9.0"

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import replace
 from typing import Any, Mapping
 
@@ -18,7 +19,36 @@ class ReActThenCoTSCAgent(BaseAgent):
         self._cot_sc = cot_sc
 
     def predict(self, example: BenchmarkExample) -> AgentResult:
-        react_result = self._react.predict(example)
+        return self.predict_batch((example,))[0]
+
+    def predict_batch(
+        self,
+        examples: Sequence[BenchmarkExample],
+    ) -> tuple[AgentResult, ...]:
+        if not examples:
+            return ()
+        react_results = self._react.predict_batch(examples)
+        if len(react_results) != len(examples):
+            raise RuntimeError("ReAct batch output count does not match input count.")
+        fallback_indices = [
+            index
+            for index, result in enumerate(react_results)
+            if not (result.prediction and result.termination_reason == "completed")
+        ]
+        fallback_outcomes = self._cot_sc.predict_batch_with_consensus(
+            [examples[index] for index in fallback_indices]
+        )
+        outcomes_by_index = dict(zip(fallback_indices, fallback_outcomes, strict=True))
+        return tuple(
+            self._combine_result(react_result, outcomes_by_index.get(index))
+            for index, react_result in enumerate(react_results)
+        )
+
+    @staticmethod
+    def _combine_result(
+        react_result: AgentResult,
+        cot_outcome: CoTSCOutcome | None,
+    ) -> AgentResult:
         react_steps = _phase_steps(react_result.trajectory, "react")
         if react_result.prediction and react_result.termination_reason == "completed":
             return AgentResult(
@@ -35,7 +65,8 @@ class ReActThenCoTSCAgent(BaseAgent):
                 },
             )
 
-        cot_outcome = self._cot_sc.predict_with_consensus(example)
+        if cot_outcome is None:
+            raise RuntimeError("Missing CoT-SC fallback output for failed ReAct result.")
         cot_steps = _phase_steps(
             cot_outcome.result.trajectory,
             "cot_sc",
@@ -68,7 +99,34 @@ class CoTSCThenReActAgent(BaseAgent):
         self._react = react
 
     def predict(self, example: BenchmarkExample) -> AgentResult:
-        cot_outcome = self._cot_sc.predict_with_consensus(example)
+        return self.predict_batch((example,))[0]
+
+    def predict_batch(
+        self,
+        examples: Sequence[BenchmarkExample],
+    ) -> tuple[AgentResult, ...]:
+        if not examples:
+            return ()
+        cot_outcomes = self._cot_sc.predict_batch_with_consensus(examples)
+        fallback_indices = [
+            index
+            for index, outcome in enumerate(cot_outcomes)
+            if not (outcome.result.prediction and outcome.meets_paper_threshold)
+        ]
+        fallback_results = self._react.predict_batch(
+            [examples[index] for index in fallback_indices]
+        )
+        react_by_index = dict(zip(fallback_indices, fallback_results, strict=True))
+        return tuple(
+            self._combine_result(cot_outcome, react_by_index.get(index))
+            for index, cot_outcome in enumerate(cot_outcomes)
+        )
+
+    @staticmethod
+    def _combine_result(
+        cot_outcome: CoTSCOutcome,
+        react_result: AgentResult | None,
+    ) -> AgentResult:
         cot_steps = _phase_steps(cot_outcome.result.trajectory, "cot_sc")
         if cot_outcome.result.prediction and cot_outcome.meets_paper_threshold:
             return AgentResult(
@@ -84,7 +142,8 @@ class CoTSCThenReActAgent(BaseAgent):
                 ),
             )
 
-        react_result = self._react.predict(example)
+        if react_result is None:
+            raise RuntimeError("Missing ReAct fallback output for low-confidence CoT-SC.")
         react_steps = _phase_steps(
             react_result.trajectory,
             "react",

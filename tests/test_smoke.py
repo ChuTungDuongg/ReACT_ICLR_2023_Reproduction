@@ -87,6 +87,24 @@ def test_hybrid_cot_sc_settings_are_overridable() -> None:
     assert args.cot_sc_temperature == pytest.approx(0.9)
 
 
+@pytest.mark.parametrize("method", ["react-cot-sc", "cot-sc-react"])
+@pytest.mark.parametrize("batch_size", [2, 3])
+def test_hybrid_batch_size_is_configurable(method: str, batch_size: int) -> None:
+    args = build_parser(PROJECT_ROOT).parse_args(
+        [
+            "benchmark",
+            "--task",
+            "hotpotqa",
+            "--method",
+            method,
+            "--batch-size",
+            str(batch_size),
+        ]
+    )
+
+    assert args.batch_size == batch_size
+
+
 def test_doctor_loads_default_config() -> None:
     clean_environment = os.environ.copy()
     clean_environment.pop("REACT_LOG_LEVEL", None)

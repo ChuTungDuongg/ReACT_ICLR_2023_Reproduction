@@ -2,7 +2,7 @@
 
 > 🌐 **Ngôn ngữ:** [English](README.md) | Tiếng Việt
 
-Repository hiện có **68 tests**. Unit tests không tải LLM và không gọi
+Repository hiện có **77 tests**. Unit tests không tải LLM và không gọi
 Wikipedia thật; chúng dùng scripted LLM, dữ liệu inject và fake Wikipedia
 client để kiểm tra đúng control flow với tốc độ nhanh, ổn định.
 
@@ -31,12 +31,12 @@ python -m pytest tests/test_experiment_serialization.py -q
 | `test_metrics.py` | Official answer, supporting-fact và joint HotpotQA metrics |
 | `test_parsing.py` | Parse đáp án Standard/CoT và reasoning |
 | `test_standard_cot_agents.py` | Prompt, result và trajectory của Standard/CoT |
-| `test_hybrid_agents.py` | CoT-SC voting, threshold paper và hai thứ tự fallback |
+| `test_hybrid_agents.py` | CoT-SC voting/batching, threshold paper và hai thứ tự fallback |
 | `test_action_parsing.py` | Search/Lookup/Finish, Thought/Action và format drift |
 | `test_wikipedia.py` | Search, Lookup tiếp theo, missing, ambiguity, loop, max-step |
 | `test_act_agent.py` | Vòng lặp Act-only và phục hồi parsing error |
-| `test_react_agent.py` | Thought/Action/Observation, history và termination |
-| `test_experiment_serialization.py` | Config, full metrics, terminal log, prediction/trajectory flush |
+| `test_react_agent.py` | Thought/Action/Observation, batch environment độc lập, history và termination |
+| `test_experiment_serialization.py` | Config, batch dispatch, full metrics, terminal log, prediction/trajectory flush |
 
 ## Fake và integration-style khác gì benchmark thật?
 

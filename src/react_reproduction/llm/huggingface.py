@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +51,9 @@ class HuggingFaceProvider(LLMProvider):
             cache_dir=resolved_cache,
             trust_remote_code=trust_remote_code,
         )
+        if self.tokenizer.pad_token_id is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+        self.tokenizer.padding_side = "left"
 
         dtype = _preferred_dtype(self.device, torch)
         model_kwargs: dict[str, Any] = {
@@ -108,6 +112,46 @@ class HuggingFaceProvider(LLMProvider):
         completion_ids = output_ids[0, input_length:]
         return self.tokenizer.decode(completion_ids, skip_special_tokens=True).strip()
 
+    def generate_batch(
+        self,
+        prompts: Sequence[str],
+        *,
+        temperature: float,
+        top_p: float,
+        max_new_tokens: int,
+    ) -> tuple[str, ...]:
+        if not prompts:
+            return ()
+        if any(not prompt.strip() for prompt in prompts):
+            raise ValueError("prompts cannot contain an empty prompt.")
+        if temperature < 0:
+            raise ValueError("temperature cannot be negative.")
+        if not 0.0 <= top_p <= 1.0:
+            raise ValueError("top_p must be between 0.0 and 1.0.")
+        if max_new_tokens <= 0:
+            raise ValueError("max_new_tokens must be positive.")
+
+        model_inputs = self._prepare_batch_inputs(prompts)
+        input_length = model_inputs["input_ids"].shape[-1]
+        generate_kwargs: dict[str, Any] = {
+            "max_new_tokens": max_new_tokens,
+            "do_sample": temperature > 0.0,
+            "pad_token_id": self.tokenizer.pad_token_id,
+        }
+        if temperature > 0.0:
+            generate_kwargs.update(temperature=temperature, top_p=top_p)
+
+        with self._torch.inference_mode():
+            output_ids = self.model.generate(**model_inputs, **generate_kwargs)
+        completions = output_ids[:, input_length:]
+        return tuple(
+            text.strip()
+            for text in self.tokenizer.batch_decode(
+                completions,
+                skip_special_tokens=True,
+            )
+        )
+
     def _prepare_inputs(self, prompt: str) -> dict[str, Any]:
         messages = [{"role": "user", "content": prompt}]
         if getattr(self.tokenizer, "chat_template", None):
@@ -121,6 +165,28 @@ class HuggingFaceProvider(LLMProvider):
         else:
             encoded = self.tokenizer(prompt, return_tensors="pt")
 
+        target_device = self._input_device()
+        return {name: tensor.to(target_device) for name, tensor in encoded.items()}
+
+    def _prepare_batch_inputs(self, prompts: Sequence[str]) -> dict[str, Any]:
+        if getattr(self.tokenizer, "chat_template", None):
+            conversations = [
+                [{"role": "user", "content": prompt}] for prompt in prompts
+            ]
+            encoded = self.tokenizer.apply_chat_template(
+                conversations,
+                add_generation_prompt=True,
+                tokenize=True,
+                padding=True,
+                return_dict=True,
+                return_tensors="pt",
+            )
+        else:
+            encoded = self.tokenizer(
+                list(prompts),
+                padding=True,
+                return_tensors="pt",
+            )
         target_device = self._input_device()
         return {name: tensor.to(target_device) for name, tensor in encoded.items()}
 

@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/Paper-ICLR%202023-6f42c1" alt="Paper ICLR 2023">
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Trạng_thái-Sprint%204%20%2B%20Hybrid-238636" alt="Sprint 4 và các phương pháp hybrid">
-  <img src="https://img.shields.io/badge/Tests-68%20PASS-18A0AE" alt="68 tests PASS">
+  <img src="https://img.shields.io/badge/Tests-77%20PASS-18A0AE" alt="77 tests PASS">
   <img src="https://img.shields.io/badge/Điểm_vào-main.py-102A43" alt="Chạy bằng main.py">
 </p>
 
@@ -108,8 +108,8 @@ Sau đó chạy ReAct với 5 mẫu HotpotQA:
 
 ### Ghi chú HotpotQA khi chạy trên Colab
 
-- `--num-samples` là tổng số example, không phải batch size. Sprint 4 chạy tuần
-  tự từng example; model chỉ load một lần rồi được tái sử dụng.
+- `--num-samples` là tổng số example. `--batch-size` quyết định số example
+  hybrid dùng chung một GPU generation call; model chỉ load một lần cho cả run.
 - Split hiện tại `hotpotqa/hotpot_qa`, `distractor`, `validation` có tối đa
   **7.405 examples**. Giá trị hợp lệ là `1-7405`; nhập lớn hơn sẽ dừng với lỗi
   validation.
@@ -176,6 +176,7 @@ python main.py benchmark \
     --num-samples 5 \
     --seed 42 \
     --max-agent-steps 7 \
+    --batch-size 2 \
     --cot-sc-samples 21 \
     --cot-sc-temperature 0.7
 ```
@@ -191,6 +192,7 @@ python main.py benchmark \
     --num-samples 5 \
     --seed 42 \
     --max-agent-steps 7 \
+    --batch-size 2 \
     --cot-sc-samples 21 \
     --cot-sc-temperature 0.7
 ```
@@ -201,6 +203,14 @@ với 500 examples: CoT-SC → ReAct cần ít nhất 21 lượt generation mỗ
 (10.500 lượt cho 500 examples), còn ReAct → CoT-SC chỉ chịu chi phí đó khi
 fallback. Chỉ thêm `--show-trajectories` cho run nhỏ vì nó in mọi CoT sample và
 mọi bước ReAct.
+
+Trên A100, nên bắt đầu bằng `--batch-size 2`; thử 3 nếu GPU vẫn còn đủ bộ nhớ.
+CoT-SC batch các câu hỏi với nhau ở từng vòng trong 21 vòng sampling. ReAct
+batch những câu còn active tại cùng step nhưng mỗi câu vẫn có Wikipedia state
+và trajectory riêng. Prediction vẫn được flush theo thứ tự dataset sau mỗi
+batch, nên nếu runtime ngắt thì mất tối đa batch 2-3 câu đang xử lý. Batch size
+thay đổi lịch generation nên CoT sampling có thể khác dù dùng cùng seed; phải
+ghi nhận batch size khi so sánh các run.
 
 `--model` là tùy chọn; nếu bỏ qua, CLI tự dùng
 `Qwen/Qwen2.5-7B-Instruct`. Standard, CoT, Act-only, ReAct và hai hybrid nhận
@@ -214,6 +224,7 @@ Các tham số hữu ích:
 | `--device auto` | Tự chọn CUDA, MPS hoặc CPU |
 | `--num-samples 5` | Số câu hỏi được chạy |
 | `--seed 42` | Cố định cách lấy mẫu và random seed |
+| `--batch-size 2` | Số example hybrid chạy chung một GPU batch; A100 có thể thử 2 hoặc 3 |
 | `--max-agent-steps 7` | Số bước tối đa của Act/ReAct |
 | `--max-new-tokens 256` | Số token sinh tối đa trong một lượt |
 | `--cot-sc-samples 21` | Số CoT samples dùng để majority vote |
@@ -296,7 +307,7 @@ main.py
 │   ├── cli.py                      # Khai báo command và kết nối component
 │   ├── config.py                   # Đọc, kiểm tra YAML và biến môi trường
 │   └── logging_utils.py            # Live stdout UTF-8 và run.log
-└── tests/                           # 68 unit/integration-style tests
+└── tests/                           # 77 unit/integration-style tests
 ```
 
 README tiếng Việt của từng thư mục:
@@ -323,7 +334,7 @@ outputs/hotpotqa/<method>/<UTC timestamp>/
 | File | Chức năng |
 |---|---|
 | `config.json` | Lưu model, dataset, method, seed, generation config và device |
-| `predictions.jsonl` | Mỗi dòng là kết quả của một example; flush ngay sau example |
+| `predictions.jsonl` | Mỗi dòng là kết quả một example; flush theo thứ tự sau mỗi batch |
 | `trajectories.jsonl` | Mỗi dòng là trajectory có phase Act/ReAct/hybrid |
 | `metrics.json` | Full official HotpotQA metrics, runtime, steps/tool calls và lý do dừng |
 | `run.log` | Bản log được lưu song song với stdout |
@@ -357,7 +368,7 @@ python main.py --help
 python main.py doctor
 ```
 
-68 tests hiện tại kiểm tra:
+77 tests hiện tại kiểm tra:
 
 - CLI, cấu hình và `doctor`;
 - HotpotQA loading, validation và sampling theo seed;

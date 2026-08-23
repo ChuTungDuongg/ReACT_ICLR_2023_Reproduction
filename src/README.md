@@ -38,6 +38,9 @@ deterministic seeded behavior.
 answers. `agents/hybrid.py` implements ReAct → CoT-SC and CoT-SC → ReAct with
 the paper fallback rules. Hybrid trajectories carry explicit `react`/`cot_sc`
 phase labels and prediction metadata records vote confidence and selected path.
+The batch APIs keep sequential fallbacks for test providers, while the Hugging
+Face provider performs real padded GPU generation. CoT-SC batches every
+sampling round; ReAct keeps one reusable Wikipedia environment per batch slot.
 
 For Act/ReAct, `Search` accepts a concise entity or page title while `Lookup`
 reads matching sentences inside the open article. A second identical `Search`

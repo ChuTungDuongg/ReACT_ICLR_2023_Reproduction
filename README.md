@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/Paper-ICLR%202023-6f42c1" alt="ICLR 2023 paper">
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Status-Sprint%204%20%2B%20Hybrids-238636" alt="Sprint 4 plus hybrid methods">
-  <img src="https://img.shields.io/badge/Tests-68%20Passing-18A0AE" alt="68 tests passing">
+  <img src="https://img.shields.io/badge/Tests-77%20Passing-18A0AE" alt="77 tests passing">
   <img src="https://img.shields.io/badge/Interface-main.py-102A43" alt="CLI first">
 </p>
 
@@ -100,9 +100,9 @@ Then run the requested five-sample benchmark:
 
 ### HotpotQA notes for Colab
 
-- `--num-samples` is the total number of examples, not a batch size. Sprint 4
-  inference is sequential; the model is loaded once and reused for every
-  example.
+- `--num-samples` is the total number of examples. `--batch-size` controls how
+  many hybrid examples share one GPU generation call; the model is loaded once
+  and reused for the complete run.
 - The configured `hotpotqa/hotpot_qa`, `distractor`, `validation` split contains
   **7,405 examples**. The valid range is therefore `1-7405`; a larger request
   stops with a validation error.
@@ -186,6 +186,7 @@ python main.py benchmark \
     --num-samples 5 \
     --seed 42 \
     --max-agent-steps 7 \
+    --batch-size 2 \
     --cot-sc-samples 21 \
     --cot-sc-temperature 0.7
 ```
@@ -201,6 +202,7 @@ python main.py benchmark \
     --num-samples 5 \
     --seed 42 \
     --max-agent-steps 7 \
+    --batch-size 2 \
     --cot-sc-samples 21 \
     --cot-sc-temperature 0.7
 ```
@@ -212,7 +214,15 @@ per example (10,500 for 500 examples), while ReAct → CoT-SC pays that cost onl
 on fallback. Add `--show-trajectories` only for small diagnostic runs because it
 prints every CoT sample and every ReAct step.
 
-Useful overrides include `--device auto|cpu|cuda|mps`, `--max-agent-steps`,
+On an A100, start with `--batch-size 2`; try 3 if memory remains comfortable.
+CoT-SC batches the questions together on every one of its 21 sampling rounds.
+ReAct batches active questions at the same step while preserving a separate
+Wikipedia state and trajectory for each question. Results are still flushed in
+dataset order after each batch, so an interruption can lose at most the current
+2-3 examples. Batch size changes generation scheduling and can change sampled
+CoT outputs even with the same seed; record it when comparing runs.
+
+Useful overrides include `--device auto|cpu|cuda|mps`, `--batch-size`, `--max-agent-steps`,
 `--max-new-tokens`, `--temperature`, `--top-p`, `--cot-sc-samples`,
 `--cot-sc-temperature`, `--react-best-effort-finalization`, `--log-level`, and
 `--trust-remote-code`. ReAct uses the normal generation temperature (default
@@ -286,7 +296,7 @@ main.py
 │   ├── cli.py                      # Argument parsing and dependency wiring
 │   ├── config.py                   # Typed YAML/environment configuration
 │   └── logging_utils.py            # UTF-8 live stdout + run.log
-└── tests/                           # 68 deterministic tests
+└── tests/                           # 77 deterministic tests
 ```
 
 Each first-level directory has its own README:
@@ -310,8 +320,8 @@ outputs/hotpotqa/<method>/<UTC timestamp>/
 └── run.log              # Same inspectable progress retained from stdout
 ```
 
-`predictions.jsonl` is flushed after every example for every method and includes
-per-example answer, supporting-fact, and joint scores.
+`predictions.jsonl` is flushed in dataset order after each completed inference
+batch and includes per-example answer, supporting-fact, and joint scores.
 `trajectories.jsonl` is created for Act/ReAct/hybrid runs and contains phase
 labels (`cot_sc` or `react`), model output, Thought, canonical Action, and actual
 environment Observation. Hybrid `predictions.jsonl` records also include vote
@@ -341,7 +351,7 @@ python main.py --help
 python main.py doctor
 ```
 
-The 68-test suite is offline/model-free and covers configuration/CLI smoke,
+The 77-test suite is offline/model-free and covers configuration/CLI smoke,
 seeded HotpotQA loading, official answer/supporting-fact/joint metrics, Hugging Face agent wiring,
 six-example paper prompt packs, numbered-label parsing, Standard/CoT parsing,
 Wikipedia Search/Lookup/Finish, ambiguity, repeated

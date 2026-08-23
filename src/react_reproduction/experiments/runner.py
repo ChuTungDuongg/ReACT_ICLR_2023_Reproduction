@@ -7,7 +7,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping, Protocol, Sequence
+from typing import Any, Iterator, Mapping, Protocol, Sequence
 
 from react_reproduction import __version__
 from react_reproduction.agents.base import AgentResult
@@ -75,6 +75,7 @@ class BenchmarkRunConfig:
     seed: int
     generation: Mapping[str, Any]
     max_agent_steps: int
+    batch_size: int = 1
     method_settings: Mapping[str, Any] = field(default_factory=dict)
     device: str = "auto"
     code_version: str = __version__
@@ -85,6 +86,8 @@ class BenchmarkRunConfig:
             raise ValueError("num_samples must be positive.")
         if self.max_agent_steps <= 0:
             raise ValueError("max_agent_steps must be positive.")
+        if self.batch_size <= 0:
+            raise ValueError("batch_size must be positive.")
 
     def to_dict(self) -> dict[str, Any]:
         result = asdict(self)
@@ -142,18 +145,12 @@ def run_hotpotqa_benchmark(
     prediction_records: list[PredictionRecord] = []
     running_correct = 0
 
-    for index, example in enumerate(examples, start=1):
-        active_logger.info(
-            "[%d/%d] example_id=%s",
-            index,
-            len(examples),
-            example.example_id,
-        )
-        active_logger.info("Question: %s", example.input_text)
-
-        example_started = time.perf_counter()
-        output = predictor.predict(example)
-        latency = time.perf_counter() - example_started
+    for index, example, output, latency in _predict_in_batches(
+        examples,
+        predictor,
+        batch_size=config.batch_size,
+        logger=active_logger,
+    ):
         answer_em, answer_f1, answer_precision, answer_recall = answer_metrics(
             output.prediction,
             example.gold_answer,
@@ -286,6 +283,57 @@ def run_hotpotqa_benchmark(
         predictions=tuple(prediction_records),
         artifacts=active_artifacts,
     )
+
+
+def _predict_in_batches(
+    examples: Sequence[BenchmarkExample],
+    predictor: Predictor,
+    *,
+    batch_size: int,
+    logger: logging.Logger,
+) -> Iterator[tuple[int, BenchmarkExample, AgentResult, float]]:
+    """Run ordered example chunks and report amortized wall time per example."""
+    for batch_start in range(0, len(examples), batch_size):
+        batch = examples[batch_start : batch_start + batch_size]
+        batch_end = batch_start + len(batch)
+        logger.info(
+            "Inference batch [%d-%d/%d] size=%d",
+            batch_start + 1,
+            batch_end,
+            len(examples),
+            len(batch),
+        )
+        for offset, example in enumerate(batch, start=batch_start + 1):
+            logger.info(
+                "[%d/%d] example_id=%s",
+                offset,
+                len(examples),
+                example.example_id,
+            )
+            logger.info("Question: %s", example.input_text)
+
+        batch_started = time.perf_counter()
+        batch_predict = getattr(predictor, "predict_batch", None)
+        if len(batch) > 1 and callable(batch_predict):
+            outputs = tuple(batch_predict(batch))
+        else:
+            outputs = tuple(predictor.predict(example) for example in batch)
+        batch_latency = time.perf_counter() - batch_started
+        if len(outputs) != len(batch):
+            raise RuntimeError(
+                "Predictor batch output count does not match input count: "
+                f"{len(outputs)} != {len(batch)}."
+            )
+        amortized_latency = batch_latency / len(batch)
+        for index, example, output in zip(
+            range(batch_start + 1, batch_end + 1),
+            batch,
+            outputs,
+            strict=True,
+        ):
+            if not isinstance(output, AgentResult):
+                raise TypeError("Predictor outputs must be AgentResult instances.")
+            yield index, example, output, amortized_latency
 
 
 def _utc_now() -> datetime:

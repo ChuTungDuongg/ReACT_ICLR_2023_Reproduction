@@ -27,6 +27,35 @@ class ScriptedLLM(LLMProvider):
         return next(self._responses)
 
 
+class BatchedScriptedLLM(LLMProvider):
+    def __init__(self, response_batches: list[list[str]]) -> None:
+        self._response_batches = iter(response_batches)
+        self.prompt_batches: list[list[str]] = []
+
+    def generate(
+        self,
+        prompt: str,
+        *,
+        temperature: float,
+        top_p: float,
+        max_new_tokens: int,
+    ) -> str:
+        raise AssertionError("The batched ReAct path must use generate_batch().")
+
+    def generate_batch(
+        self,
+        prompts: list[str],
+        *,
+        temperature: float,
+        top_p: float,
+        max_new_tokens: int,
+    ) -> tuple[str, ...]:
+        self.prompt_batches.append(list(prompts))
+        responses = next(self._response_batches)
+        assert len(responses) == len(prompts)
+        return tuple(responses)
+
+
 def test_react_agent_reasons_searches_looks_up_and_finishes() -> None:
     llm = ScriptedLLM(
         [
@@ -168,3 +197,45 @@ def test_react_agent_defaults_to_paper_style_without_forced_finalization() -> No
     assert result.prediction == ""
     assert result.termination_reason == "max_steps_exceeded"
     assert "final allowed step" not in llm.prompts[1]
+
+
+def test_react_batches_active_questions_with_independent_environments() -> None:
+    llm = BatchedScriptedLLM(
+        [
+            [
+                "Thought: Search first.\nAction: Search[Albert Einstein]",
+                "Thought: Search first.\nAction: Search[missing]",
+            ],
+            [
+                "Thought: Answer first.\nAction: Finish[1879]",
+                "Thought: Answer second.\nAction: Finish[unknown]",
+            ],
+        ]
+    )
+    created_environments: list[WikipediaEnvironment] = []
+
+    def create_environment() -> WikipediaEnvironment:
+        environment = WikipediaEnvironment(FakeWikipediaClient(), max_steps=3)
+        created_environments.append(environment)
+        return environment
+
+    agent = ReActAgent(
+        llm,
+        GenerationConfig(max_new_tokens=32),
+        create_environment(),
+        max_steps=3,
+        environment_factory=create_environment,
+    )
+    examples = [
+        BenchmarkExample("1", "When was Einstein born?", "1879"),
+        BenchmarkExample("2", "What is missing?", "unknown"),
+    ]
+
+    results = agent.predict_batch(examples)
+
+    assert [result.prediction for result in results] == ["1879", "unknown"]
+    assert [result.tool_calls for result in results] == [1, 1]
+    assert [len(batch) for batch in llm.prompt_batches] == [2, 2]
+    assert "Opened 'Albert Einstein'" in llm.prompt_batches[1][0]
+    assert "No Wikipedia article found" in llm.prompt_batches[1][1]
+    assert len(created_environments) == 2

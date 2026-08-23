@@ -13,6 +13,7 @@ from react_reproduction.llm.base import LLMProvider
 
 
 EXAMPLE = BenchmarkExample("example-1", "What is the answer?", "Berlin")
+EXAMPLE_2 = BenchmarkExample("example-2", "What is the second answer?", "Rome")
 
 
 class ScriptedLLM(LLMProvider):
@@ -32,6 +33,35 @@ class ScriptedLLM(LLMProvider):
         return next(self._responses)
 
 
+class BatchedScriptedLLM(LLMProvider):
+    def __init__(self, response_batches: list[list[str]]) -> None:
+        self._response_batches = iter(response_batches)
+        self.batch_sizes: list[int] = []
+
+    def generate(
+        self,
+        prompt: str,
+        *,
+        temperature: float,
+        top_p: float,
+        max_new_tokens: int,
+    ) -> str:
+        raise AssertionError("The batched CoT-SC path must use generate_batch().")
+
+    def generate_batch(
+        self,
+        prompts: list[str],
+        *,
+        temperature: float,
+        top_p: float,
+        max_new_tokens: int,
+    ) -> tuple[str, ...]:
+        self.batch_sizes.append(len(prompts))
+        responses = next(self._response_batches)
+        assert len(responses) == len(prompts)
+        return tuple(responses)
+
+
 class StaticAgent(BaseAgent):
     def __init__(self, result: AgentResult) -> None:
         self.result = result
@@ -40,6 +70,22 @@ class StaticAgent(BaseAgent):
     def predict(self, example: BenchmarkExample) -> AgentResult:
         self.calls += 1
         return self.result
+
+
+class BatchStaticAgent(BaseAgent):
+    def __init__(self, results_by_id: dict[str, AgentResult]) -> None:
+        self.results_by_id = results_by_id
+        self.batch_sizes: list[int] = []
+
+    def predict(self, example: BenchmarkExample) -> AgentResult:
+        return self.results_by_id[example.example_id]
+
+    def predict_batch(
+        self,
+        examples: list[BenchmarkExample],
+    ) -> tuple[AgentResult, ...]:
+        self.batch_sizes.append(len(examples))
+        return tuple(self.predict(example) for example in examples)
 
 
 def _cot_sc(responses: list[str]) -> CoTSCAgent:
@@ -138,6 +184,31 @@ def test_cot_sc_accepts_exact_half_for_even_sample_count_per_paper_rule() -> Non
     assert outcome.meets_paper_threshold is True
 
 
+def test_cot_sc_batches_multiple_questions_for_every_sampling_round() -> None:
+    llm = BatchedScriptedLLM(
+        [
+            ["Answer: Berlin", "Answer: Paris"],
+            ["Answer: Berlin", "Answer: Rome"],
+            ["Answer: Munich", "Answer: Rome"],
+        ]
+    )
+    agent = CoTSCAgent(
+        llm,
+        GenerationConfig(temperature=0.7, max_new_tokens=32),
+        num_samples=3,
+    )
+    examples = [
+        EXAMPLE,
+        BenchmarkExample("example-2", "Second question?", "Rome"),
+    ]
+
+    results = agent.predict_batch(examples)
+
+    assert [result.prediction for result in results] == ["Berlin", "Rome"]
+    assert [result.steps for result in results] == [3, 3]
+    assert llm.batch_sizes == [2, 2, 2]
+
+
 def test_react_then_cot_sc_keeps_natural_react_answer_without_fallback() -> None:
     react = StaticAgent(_react_result("Berlin", "completed"))
     cot_sc = _cot_sc(["Answer: Paris"])
@@ -213,3 +284,63 @@ def test_cot_sc_then_react_falls_back_on_low_confidence() -> None:
     assert result.metadata["cot_sc_threshold_met"] is False
     assert react.calls == 1
     assert result.trajectory[-1].phase == "react"
+
+
+def test_react_then_cot_sc_batches_both_legs_and_preserves_order() -> None:
+    react = BatchStaticAgent(
+        {
+            EXAMPLE.example_id: _react_result("", "max_steps_exceeded"),
+            EXAMPLE_2.example_id: _react_result("", "action_loop"),
+        }
+    )
+    llm = BatchedScriptedLLM(
+        [
+            ["Answer: Berlin", "Answer: Rome"],
+            ["Answer: Berlin", "Answer: Rome"],
+            ["Answer: Paris", "Answer: Paris"],
+        ]
+    )
+    cot_sc = CoTSCAgent(
+        llm,
+        GenerationConfig(temperature=0.7, max_new_tokens=32),
+        num_samples=3,
+    )
+
+    results = ReActThenCoTSCAgent(react, cot_sc).predict_batch(
+        [EXAMPLE, EXAMPLE_2]
+    )
+
+    assert [result.prediction for result in results] == ["Berlin", "Rome"]
+    assert react.batch_sizes == [2]
+    assert llm.batch_sizes == [2, 2, 2]
+    assert all(result.metadata["selected_path"] == "cot_sc" for result in results)
+
+
+def test_cot_sc_then_react_batches_low_confidence_fallbacks() -> None:
+    llm = BatchedScriptedLLM(
+        [
+            ["Answer: Paris", "Answer: Madrid"],
+            ["Answer: Munich", "Answer: Lisbon"],
+            ["Answer: Hamburg", "Answer: Vienna"],
+        ]
+    )
+    cot_sc = CoTSCAgent(
+        llm,
+        GenerationConfig(temperature=0.7, max_new_tokens=32),
+        num_samples=3,
+    )
+    react = BatchStaticAgent(
+        {
+            EXAMPLE.example_id: _react_result("Berlin", "completed"),
+            EXAMPLE_2.example_id: _react_result("Rome", "completed"),
+        }
+    )
+
+    results = CoTSCThenReActAgent(cot_sc, react).predict_batch(
+        [EXAMPLE, EXAMPLE_2]
+    )
+
+    assert [result.prediction for result in results] == ["Berlin", "Rome"]
+    assert llm.batch_sizes == [2, 2, 2]
+    assert react.batch_sizes == [2]
+    assert all(result.metadata["selected_path"] == "react" for result in results)

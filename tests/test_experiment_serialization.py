@@ -81,7 +81,8 @@ def test_mock_benchmark_serializes_config_metrics_and_predictions() -> None:
 
         assert serialized_config["seed"] == 42
         assert serialized_config["model"] == "mock"
-        assert serialized_config["code_version"] == "0.8.1"
+        assert serialized_config["code_version"] == "0.9.0"
+        assert serialized_config["batch_size"] == 1
         assert serialized_config["method_settings"] == {"cot_sc_samples": 3}
         assert serialized_metrics["exact_match"] == 0.5
         assert serialized_metrics["f1"] == 0.5
@@ -239,6 +240,73 @@ def test_hybrid_benchmark_persists_phase_and_vote_metadata() -> None:
             "cot_sc_winning_count": 2,
         }
         assert trajectory["steps"][0]["phase"] == "cot_sc"
+    finally:
+        if test_output_root.exists():
+            resolved_test_root = test_output_root.resolve()
+            assert resolved_test_root.parent == (PROJECT_ROOT / "outputs").resolve()
+            shutil.rmtree(resolved_test_root)
+
+
+def test_runner_dispatches_hybrid_examples_in_configured_batches() -> None:
+    test_output_root = PROJECT_ROOT / "outputs" / f"_pytest_{uuid4().hex}"
+    examples = [
+        BenchmarkExample(str(index), f"Question {index}?", f"answer-{index}")
+        for index in range(1, 5)
+    ]
+    config = BenchmarkRunConfig(
+        model="scripted",
+        dataset="hotpotqa/hotpot_qa:distractor:validation",
+        task="hotpotqa",
+        method="cot-sc-react",
+        num_samples=4,
+        seed=42,
+        generation={"temperature": 0.0, "top_p": 1.0, "max_new_tokens": 16},
+        max_agent_steps=7,
+        batch_size=2,
+        timestamp="2026-08-23T01:33:00+00:00",
+    )
+
+    class BatchPredictor:
+        def __init__(self) -> None:
+            self.batch_sizes: list[int] = []
+
+        def predict(self, example: BenchmarkExample) -> AgentResult:
+            raise AssertionError("Runner should dispatch complete batches.")
+
+        def predict_batch(
+            self,
+            batch: list[BenchmarkExample],
+        ) -> tuple[AgentResult, ...]:
+            self.batch_sizes.append(len(batch))
+            return tuple(
+                AgentResult(
+                    prediction=example.gold_answer,
+                    steps=1,
+                    tool_calls=0,
+                    termination_reason="completed",
+                )
+                for example in batch
+            )
+
+    predictor = BatchPredictor()
+    try:
+        result = run_hotpotqa_benchmark(
+            examples,
+            predictor,
+            config,
+            output_root=test_output_root,
+        )
+
+        assert predictor.batch_sizes == [2, 2]
+        serialized_config = json.loads(result.artifacts.config_path.read_text("utf-8"))
+        assert serialized_config["batch_size"] == 2
+        assert [record.example_id for record in result.predictions] == [
+            "1",
+            "2",
+            "3",
+            "4",
+        ]
+        assert result.metrics.exact_match == 1.0
     finally:
         if test_output_root.exists():
             resolved_test_root = test_output_root.resolve()

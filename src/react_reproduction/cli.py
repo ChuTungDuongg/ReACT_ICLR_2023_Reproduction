@@ -69,6 +69,15 @@ def build_parser(project_root: Path) -> argparse.ArgumentParser:
     benchmark.add_argument("--max-new-tokens", type=_positive_int)
     benchmark.add_argument("--max-agent-steps", type=_positive_int)
     benchmark.add_argument(
+        "--batch-size",
+        type=_positive_int,
+        default=1,
+        help=(
+            "Number of examples generated together for hybrid methods "
+            "(default: 1; try 2 or 3 on A100)."
+        ),
+    )
+    benchmark.add_argument(
         "--react-best-effort-finalization",
         action="store_true",
         help=(
@@ -187,11 +196,14 @@ def _run_benchmark(
     if args.method not in set(METHODS):
         raise ValueError(f"Method {args.method!r} is not implemented.")
     react_methods = {"react", "react-cot-sc", "cot-sc-react"}
+    hybrid_methods = {"react-cot-sc", "cot-sc-react"}
     if args.react_best_effort_finalization and args.method not in react_methods:
         raise ValueError(
             "--react-best-effort-finalization only applies to methods that "
             "contain ReAct."
         )
+    if args.batch_size > 1 and args.method not in hybrid_methods:
+        raise ValueError("--batch-size > 1 is currently supported by hybrid methods only.")
 
     num_samples = args.num_samples or config.benchmark.num_samples
     seed = args.seed if args.seed is not None else config.benchmark.seed
@@ -206,7 +218,7 @@ def _run_benchmark(
         max_new_tokens=args.max_new_tokens or config.generation.max_new_tokens,
     )
     method_settings: dict[str, object] = {}
-    if args.method in {"react-cot-sc", "cot-sc-react"}:
+    if args.method in hybrid_methods:
         method_settings.update(
             cot_sc_samples=args.cot_sc_samples,
             cot_sc_temperature=args.cot_sc_temperature,
@@ -229,6 +241,7 @@ def _run_benchmark(
         seed=seed,
         generation=asdict(generation),
         max_agent_steps=max_agent_steps,
+        batch_size=args.batch_size,
         method_settings=method_settings,
         device=args.device,
     )
@@ -247,6 +260,7 @@ def _run_benchmark(
     logger.info("Starting benchmark: task=%s method=%s", args.task, args.method)
     logger.info("Code version: %s", __version__)
     logger.info("Run directory: %s", artifacts.run_directory)
+    logger.info("Inference batch size: %d", args.batch_size)
     cache_dir = project_root / "cache" / "huggingface"
     _configure_huggingface_cache(cache_dir)
     logger.info("Loading %d HotpotQA samples with seed=%d", num_samples, seed)
@@ -279,10 +293,13 @@ def _run_benchmark(
             WikipediaEnvironment,
         )
 
-        environment = WikipediaEnvironment(
-            WikipediaClient(),
-            max_steps=max_agent_steps,
-        )
+        def create_environment() -> WikipediaEnvironment:
+            return WikipediaEnvironment(
+                WikipediaClient(),
+                max_steps=max_agent_steps,
+            )
+
+        environment = create_environment()
         if args.method == "act":
             from react_reproduction.agents.act import ActOnlyAgent
 
@@ -301,6 +318,7 @@ def _run_benchmark(
                 environment,
                 max_steps=max_agent_steps,
                 best_effort_finalization=args.react_best_effort_finalization,
+                environment_factory=create_environment,
             )
         else:
             from react_reproduction.agents.cot_sc import CoTSCAgent
@@ -326,6 +344,7 @@ def _run_benchmark(
                 environment,
                 max_steps=max_agent_steps,
                 best_effort_finalization=args.react_best_effort_finalization,
+                environment_factory=create_environment,
             )
             agent = (
                 ReActThenCoTSCAgent(react_agent, cot_sc_agent)

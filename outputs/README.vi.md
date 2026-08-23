@@ -19,8 +19,9 @@ outputs/<task>/<method>/<UTC timestamp>/
 
 ## Chức năng từng file
 
-- `config.json`: lưu toàn bộ cấu hình cần để hiểu/tái hiện run.
-- `predictions.jsonl`: mỗi example một dòng, được flush ngay sau example.
+- `config.json`: lưu toàn bộ cấu hình cần để hiểu/tái hiện run, gồm `batch_size`.
+- `predictions.jsonl`: mỗi example một dòng, được flush theo thứ tự dataset sau
+  khi batch tương ứng hoàn thành.
 - `trajectories.jsonl`: mỗi Act/ReAct/hybrid example một dòng, chứa các bước.
 - `metrics.json`: đủ 12 official answer/supporting-fact/joint HotpotQA metrics,
   evidence coverage, runtime, steps, tool calls và lý do dừng.
@@ -36,6 +37,8 @@ example đã hoàn thành vẫn còn trên disk thay vì mất toàn bộ kết 
 Với `react-cot-sc` và `cot-sc-react`, prediction còn lưu vote count/confidence,
 nhánh được chọn và trạng thái fallback. Mỗi bước hybrid trajectory có field
 `phase` bằng `react` hoặc `cot_sc`.
+Nếu hybrid run bị ngắt, chỉ batch đang thực thi có thể chưa được ghi; mọi batch
+đã hoàn thành trước đó vẫn còn trên disk.
 
 ## Lưu ý
 
