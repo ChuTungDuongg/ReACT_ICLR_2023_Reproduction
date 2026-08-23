@@ -51,8 +51,9 @@ main.py
 Hybrid trajectory có phase `react`/`cot_sc`; prediction metadata lưu vote
 confidence, nhánh được chọn và trạng thái fallback.
 Batch API có sequential fallback cho provider test, còn Hugging Face provider
-thực hiện padded GPU generation thật. CoT-SC batch ở từng vòng sampling; ReAct
-giữ một Wikipedia environment tái sử dụng riêng cho mỗi batch slot.
+thực hiện padded GPU generation thật. Standard và CoT batch các prompt một lượt;
+CoT-SC batch ở từng vòng sampling; Act và ReAct batch các example còn active ở
+từng step nhưng vẫn giữ một Wikipedia environment riêng cho mỗi batch slot.
 
 ## `tools/wikipedia.py` quản lý state như thế nào?
 

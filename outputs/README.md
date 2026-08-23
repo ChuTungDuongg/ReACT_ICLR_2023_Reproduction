@@ -10,7 +10,7 @@ outputs/<task>/<method>/<UTC timestamp>/
 ├── config.json
 ├── metrics.json
 ├── predictions.jsonl
-├── trajectories.jsonl   # Act-only, ReAct, and hybrid methods
+├── trajectories.jsonl   # CoT-SC, Act-only, ReAct, and hybrid methods
 └── run.log
 ```
 
@@ -25,8 +25,8 @@ outputs/<task>/<method>/<UTC timestamp>/
 For `react-cot-sc` and `cot-sc-react`, each prediction also records CoT-SC vote
 counts/confidence, the selected path, and whether fallback was used. Hybrid
 trajectory steps include a `phase` field with `react` or `cot_sc`.
-With hybrid batching, an interrupted run can lose only the currently executing
-batch; all earlier batches remain on disk.
+With batching, an interrupted run can lose only the currently executing batch;
+all earlier batches remain on disk.
 
 The same full final metric set is printed to stdout unless `--quiet` is used.
 When an agent emits no `(title, sentence_id)` evidence pairs, SP/joint metrics

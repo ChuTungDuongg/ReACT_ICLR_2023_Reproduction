@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/Paper-ICLR%202023-6f42c1" alt="Paper ICLR 2023">
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Trạng_thái-Sprint%204%20%2B%20Hybrid-238636" alt="Sprint 4 và các phương pháp hybrid">
-  <img src="https://img.shields.io/badge/Tests-77%20PASS-18A0AE" alt="77 tests PASS">
+  <img src="https://img.shields.io/badge/Tests-91%20PASS-18A0AE" alt="91 tests PASS">
   <img src="https://img.shields.io/badge/Điểm_vào-main.py-102A43" alt="Chạy bằng main.py">
 </p>
 
@@ -18,8 +18,8 @@
   <a href="#kiểm-thử">🧪 Kiểm thử</a>
 </p>
 
-Đây là repository tái hiện **Standard**, **Chain-of-Thought**, **Act-only**,
-**ReAct**, **ReAct → CoT-SC** và **CoT-SC → ReAct** trên HotpotQA. Model được
+Đây là repository tái hiện **Standard**, **Chain-of-Thought**, **CoT-SC**,
+**Act-only**, **ReAct**, **ReAct → CoT-SC** và **CoT-SC → ReAct** trên HotpotQA. Model được
 chạy bằng Hugging Face; các nhánh ReAct có thể tìm kiếm Wikipedia thật. Toàn bộ
 chương trình có một điểm vào duy nhất là `main.py`.
 
@@ -108,8 +108,8 @@ Sau đó chạy ReAct với 5 mẫu HotpotQA:
 
 ### Ghi chú HotpotQA khi chạy trên Colab
 
-- `--num-samples` là tổng số example. `--batch-size` quyết định số example
-  hybrid dùng chung một GPU generation call; model chỉ load một lần cho cả run.
+- `--num-samples` là tổng số example. `--batch-size` quyết định số example của
+  mọi method dùng chung một GPU generation call; model chỉ load một lần cho cả run.
 - Split hiện tại `hotpotqa/hotpot_qa`, `distractor`, `validation` có tối đa
   **7.405 examples**. Giá trị hợp lệ là `1-7405`; nhập lớn hơn sẽ dừng với lỗi
   validation.
@@ -156,12 +156,61 @@ python main.py benchmark \
     --method standard \
     --model Qwen/Qwen2.5-7B-Instruct \
     --num-samples 5 \
-    --seed 42
+    --seed 42 \
+    --batch-size 4
 ```
 
-Thay `standard` bằng `cot`, `act` hoặc `react` để đổi phương pháp. Với Act-only
-và ReAct, nên thêm `--show-trajectories` để xem trực tiếp Action/Observation và
-Thought nếu có.
+Chạy CoT-SC standalone theo default paper:
+
+```bash
+python main.py benchmark \
+    --task hotpotqa \
+    --method cot-sc \
+    --model Qwen/Qwen2.5-7B-Instruct \
+    --num-samples 5 \
+    --seed 42 \
+    --batch-size 4 \
+    --cot-sc-samples 21 \
+    --cot-sc-temperature 0.7
+```
+
+Chạy CoT:
+
+```bash
+python main.py benchmark \
+    --task hotpotqa \
+    --method cot \
+    --model Qwen/Qwen2.5-7B-Instruct \
+    --num-samples 5 \
+    --seed 42 \
+    --batch-size 4
+```
+
+Chạy Act-only:
+
+```bash
+python main.py benchmark \
+    --task hotpotqa \
+    --method act \
+    --model Qwen/Qwen2.5-7B-Instruct \
+    --num-samples 5 \
+    --seed 42 \
+    --batch-size 4 \
+    --show-trajectories
+```
+
+Chạy ReAct:
+
+```bash
+python main.py benchmark \
+    --task hotpotqa \
+    --method react \
+    --model Qwen/Qwen2.5-7B-Instruct \
+    --num-samples 5 \
+    --seed 42 \
+    --batch-size 4 \
+    --show-trajectories
+```
 
 ### Hai phương pháp hybrid trong paper
 
@@ -204,16 +253,16 @@ với 500 examples: CoT-SC → ReAct cần ít nhất 21 lượt generation mỗ
 fallback. Chỉ thêm `--show-trajectories` cho run nhỏ vì nó in mọi CoT sample và
 mọi bước ReAct.
 
-Trên A100, nên bắt đầu bằng `--batch-size 2`; thử 3 nếu GPU vẫn còn đủ bộ nhớ.
-CoT-SC batch các câu hỏi với nhau ở từng vòng trong 21 vòng sampling. ReAct
-batch những câu còn active tại cùng step nhưng mỗi câu vẫn có Wikipedia state
-và trajectory riêng. Prediction vẫn được flush theo thứ tự dataset sau mỗi
-batch, nên nếu runtime ngắt thì mất tối đa batch 2-3 câu đang xử lý. Batch size
-thay đổi lịch generation nên CoT sampling có thể khác dù dùng cùng seed; phải
-ghi nhận batch size khi so sánh các run.
+Trên A100, nên bắt đầu bằng `--batch-size 2`; thử 3 hoặc 4 nếu GPU vẫn còn đủ bộ nhớ.
+Standard và CoT batch các prompt một lượt. CoT-SC batch các câu hỏi với nhau ở
+từng vòng trong 21 vòng sampling. Act/ReAct batch những câu còn active tại cùng
+step nhưng mỗi câu vẫn có Wikipedia state và trajectory riêng. Prediction vẫn
+được flush theo thứ tự dataset sau mỗi batch, nên nếu runtime ngắt thì mất tối
+đa batch đang xử lý. Batch size thay đổi lịch generation nên output sampling có
+thể khác dù dùng cùng seed; phải ghi nhận batch size khi so sánh các run.
 
 `--model` là tùy chọn; nếu bỏ qua, CLI tự dùng
-`Qwen/Qwen2.5-7B-Instruct`. Standard, CoT, Act-only, ReAct và hai hybrid nhận
+`Qwen/Qwen2.5-7B-Instruct`. Standard, CoT, CoT-SC, Act-only, ReAct và hai hybrid nhận
 prompt material 6-shot tương ứng trong Appendix C.1; example cần chấm vẫn chỉ
 đưa câu hỏi vào model, không đưa supporting paragraphs.
 
@@ -224,7 +273,7 @@ Các tham số hữu ích:
 | `--device auto` | Tự chọn CUDA, MPS hoặc CPU |
 | `--num-samples 5` | Số câu hỏi được chạy |
 | `--seed 42` | Cố định cách lấy mẫu và random seed |
-| `--batch-size 2` | Số example hybrid chạy chung một GPU batch; A100 có thể thử 2 hoặc 3 |
+| `--batch-size 2` | Số example mọi method chạy chung một GPU batch; A100 có thể thử 2, 3 hoặc 4 |
 | `--max-agent-steps 7` | Số bước tối đa của Act/ReAct |
 | `--max-new-tokens 256` | Số token sinh tối đa trong một lượt |
 | `--cot-sc-samples 21` | Số CoT samples dùng để majority vote |
@@ -245,12 +294,13 @@ bảng paper. Act-only vẫn giữ bước cuối best-effort.
 
 <a id="cách-hoạt-động"></a>
 
-## 🧩 Sáu phương pháp CLI hoạt động như thế nào?
+## 🧩 Bảy phương pháp CLI hoạt động như thế nào?
 
 | Phương pháp | Có reasoning rõ ràng? | Dùng Wikipedia? | Luồng xử lý |
 |---|---:|---:|---|
 | Standard | Không | Không | Câu hỏi → câu trả lời |
 | CoT | Có | Không | Câu hỏi → suy luận → câu trả lời |
+| CoT-SC | Có | Không | 21 CoT samples → normalize → majority vote |
 | Act-only | Không | Có | Action ↔ Observation → Finish |
 | ReAct | Có | Có | Thought → Action → Observation → Finish |
 | ReAct → CoT-SC | Có | Ở nhánh ReAct | ReAct; nếu fail, 21 CoT samples → vote |
@@ -307,7 +357,7 @@ main.py
 │   ├── cli.py                      # Khai báo command và kết nối component
 │   ├── config.py                   # Đọc, kiểm tra YAML và biến môi trường
 │   └── logging_utils.py            # Live stdout UTF-8 và run.log
-└── tests/                           # 77 unit/integration-style tests
+└── tests/                           # 91 unit/integration-style tests
 ```
 
 README tiếng Việt của từng thư mục:
@@ -368,7 +418,7 @@ python main.py --help
 python main.py doctor
 ```
 
-77 tests hiện tại kiểm tra:
+91 tests hiện tại kiểm tra:
 
 - CLI, cấu hình và `doctor`;
 - HotpotQA loading, validation và sampling theo seed;

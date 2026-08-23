@@ -133,6 +133,7 @@ def run_hotpotqa_benchmark(
     )
     write_config(active_artifacts, config.to_dict())
     persist_trajectories = config.method in {
+        "cot-sc",
         "act",
         "react",
         "react-cot-sc",

@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/Paper-ICLR%202023-6f42c1" alt="ICLR 2023 paper">
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Status-Sprint%204%20%2B%20Hybrids-238636" alt="Sprint 4 plus hybrid methods">
-  <img src="https://img.shields.io/badge/Tests-77%20Passing-18A0AE" alt="77 tests passing">
+  <img src="https://img.shields.io/badge/Tests-91%20Passing-18A0AE" alt="91 tests passing">
   <img src="https://img.shields.io/badge/Interface-main.py-102A43" alt="CLI first">
 </p>
 
@@ -19,7 +19,7 @@
 </p>
 
 A framework-free, inspectable implementation of Standard, Chain-of-Thought,
-Act-only, ReAct, ReAct → CoT-SC, and CoT-SC → ReAct for HotpotQA. It uses
+CoT-SC, Act-only, ReAct, ReAct → CoT-SC, and CoT-SC → ReAct for HotpotQA. It uses
 Hugging Face models and a live Wikipedia environment through one entry point:
 `main.py`.
 
@@ -101,8 +101,8 @@ Then run the requested five-sample benchmark:
 ### HotpotQA notes for Colab
 
 - `--num-samples` is the total number of examples. `--batch-size` controls how
-  many hybrid examples share one GPU generation call; the model is loaded once
-  and reused for the complete run.
+  many examples share one GPU generation call for every method; the model is
+  loaded once and reused for the complete run.
 - The configured `hotpotqa/hotpot_qa`, `distractor`, `validation` split contains
   **7,405 examples**. The valid range is therefore `1-7405`; a larger request
   stops with a validation error.
@@ -147,14 +147,26 @@ python main.py benchmark \
     --method standard \
     --model Qwen/Qwen2.5-7B-Instruct \
     --num-samples 5 \
-    --seed 42
+    --seed 42 \
+    --batch-size 4
 
 python main.py benchmark \
     --task hotpotqa \
     --method cot \
     --model Qwen/Qwen2.5-7B-Instruct \
     --num-samples 5 \
-    --seed 42
+    --seed 42 \
+    --batch-size 4
+
+python main.py benchmark \
+    --task hotpotqa \
+    --method cot-sc \
+    --model Qwen/Qwen2.5-7B-Instruct \
+    --num-samples 5 \
+    --seed 42 \
+    --batch-size 4 \
+    --cot-sc-samples 21 \
+    --cot-sc-temperature 0.7
 
 python main.py benchmark \
     --task hotpotqa \
@@ -162,6 +174,7 @@ python main.py benchmark \
     --model Qwen/Qwen2.5-7B-Instruct \
     --num-samples 5 \
     --seed 42 \
+    --batch-size 4 \
     --show-trajectories
 
 python main.py benchmark \
@@ -170,6 +183,7 @@ python main.py benchmark \
     --model Qwen/Qwen2.5-7B-Instruct \
     --num-samples 5 \
     --seed 42 \
+    --batch-size 4 \
     --show-trajectories
 ```
 
@@ -214,13 +228,14 @@ per example (10,500 for 500 examples), while ReAct → CoT-SC pays that cost onl
 on fallback. Add `--show-trajectories` only for small diagnostic runs because it
 prints every CoT sample and every ReAct step.
 
-On an A100, start with `--batch-size 2`; try 3 if memory remains comfortable.
-CoT-SC batches the questions together on every one of its 21 sampling rounds.
-ReAct batches active questions at the same step while preserving a separate
-Wikipedia state and trajectory for each question. Results are still flushed in
-dataset order after each batch, so an interruption can lose at most the current
-2-3 examples. Batch size changes generation scheduling and can change sampled
-CoT outputs even with the same seed; record it when comparing runs.
+On an A100, start with `--batch-size 2`; try 3 or 4 if memory remains comfortable.
+Standard and CoT batch their one-pass prompts. CoT-SC batches the questions on
+every one of its 21 sampling rounds. Act/ReAct batch active questions at the
+same step while preserving a separate Wikipedia state and trajectory for each
+question. Results are still flushed in dataset order after each batch, so an
+interruption can lose at most the current batch. Batch size changes generation
+scheduling and can change sampled outputs even with the same seed; record it
+when comparing runs.
 
 Useful overrides include `--device auto|cpu|cuda|mps`, `--batch-size`, `--max-agent-steps`,
 `--max-new-tokens`, `--temperature`, `--top-p`, `--cot-sc-samples`,
@@ -240,16 +255,17 @@ is an experimental override and should not be used when comparing with the
 paper table. Act-only retains its best-effort final step.
 
 `--model` is optional and defaults to `Qwen/Qwen2.5-7B-Instruct`. Standard,
-CoT, Act-only, ReAct, and both hybrids receive the corresponding six-example
+CoT, CoT-SC, Act-only, ReAct, and both hybrids receive the corresponding six-example
 prompt material from Appendix C.1; the target example still contains only its
 question.
 
-## 🧩 How the six CLI methods work
+## 🧩 How the seven CLI methods work
 
 | Method | Explicit reasoning | Wikipedia | Execution path |
 |---|---:|---:|---|
 | Standard | No | No | Question → concise answer |
 | CoT | Yes | No | Question → reasoning → answer |
+| CoT-SC | Yes | No | 21 sampled CoT answers → normalized majority vote |
 | Act-only | No | Yes | Action ↔ Observation → Finish |
 | ReAct | Yes | Yes | Thought → Action → Observation → Finish |
 | ReAct → CoT-SC | Yes | On ReAct leg | ReAct; on failure, 21 CoT samples → vote |
@@ -266,7 +282,7 @@ main.py
   → CLI + validated YAML configuration
   → deterministic HotpotQA sample
   → HuggingFaceProvider (CUDA/CPU/MPS auto-detection)
-  → selected Standard / CoT / Act / ReAct / hybrid agent
+  → selected Standard / CoT / CoT-SC / Act / ReAct / hybrid agent
       └─ ReAct leg → WikipediaEnvironment → MediaWiki API
   → official HotpotQA answer/supporting-fact/joint evaluator
   → flushed JSONL + JSON + live/file logs
@@ -296,7 +312,7 @@ main.py
 │   ├── cli.py                      # Argument parsing and dependency wiring
 │   ├── config.py                   # Typed YAML/environment configuration
 │   └── logging_utils.py            # UTF-8 live stdout + run.log
-└── tests/                           # 77 deterministic tests
+└── tests/                           # 91 deterministic tests
 ```
 
 Each first-level directory has its own README:
@@ -351,7 +367,7 @@ python main.py --help
 python main.py doctor
 ```
 
-The 77-test suite is offline/model-free and covers configuration/CLI smoke,
+The 91-test suite is offline/model-free and covers configuration/CLI smoke,
 seeded HotpotQA loading, official answer/supporting-fact/joint metrics, Hugging Face agent wiring,
 six-example paper prompt packs, numbered-label parsing, Standard/CoT parsing,
 Wikipedia Search/Lookup/Finish, ambiguity, repeated

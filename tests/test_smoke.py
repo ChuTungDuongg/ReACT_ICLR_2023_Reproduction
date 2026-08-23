@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from react_reproduction.cli import DEFAULT_MODEL, build_parser
+from react_reproduction.cli import DEFAULT_MODEL, METHODS, build_parser
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -58,8 +58,8 @@ def test_react_best_effort_finalization_is_explicitly_opt_in() -> None:
     assert opted_in_args.react_best_effort_finalization is True
 
 
-@pytest.mark.parametrize("method", ["react-cot-sc", "cot-sc-react"])
-def test_hybrid_methods_expose_paper_cot_sc_defaults(method: str) -> None:
+@pytest.mark.parametrize("method", ["cot-sc", "react-cot-sc", "cot-sc-react"])
+def test_cot_sc_methods_expose_paper_defaults(method: str) -> None:
     args = build_parser(PROJECT_ROOT).parse_args(
         ["benchmark", "--task", "hotpotqa", "--method", method]
     )
@@ -87,9 +87,12 @@ def test_hybrid_cot_sc_settings_are_overridable() -> None:
     assert args.cot_sc_temperature == pytest.approx(0.9)
 
 
-@pytest.mark.parametrize("method", ["react-cot-sc", "cot-sc-react"])
+@pytest.mark.parametrize("method", METHODS)
 @pytest.mark.parametrize("batch_size", [2, 3])
-def test_hybrid_batch_size_is_configurable(method: str, batch_size: int) -> None:
+def test_all_methods_accept_configurable_batch_size(
+    method: str,
+    batch_size: int,
+) -> None:
     args = build_parser(PROJECT_ROOT).parse_args(
         [
             "benchmark",

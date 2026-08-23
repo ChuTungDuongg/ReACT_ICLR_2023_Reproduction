@@ -22,6 +22,7 @@ TASKS = ("hotpotqa", "fever")
 METHODS = (
     "standard",
     "cot",
+    "cot-sc",
     "act",
     "react",
     "react-cot-sc",
@@ -73,7 +74,7 @@ def build_parser(project_root: Path) -> argparse.ArgumentParser:
         type=_positive_int,
         default=1,
         help=(
-            "Number of examples generated together for hybrid methods "
+            "Number of examples generated together in one model batch "
             "(default: 1; try 2 or 3 on A100)."
         ),
     )
@@ -89,7 +90,7 @@ def build_parser(project_root: Path) -> argparse.ArgumentParser:
         "--cot-sc-samples",
         type=_positive_int,
         default=21,
-        help="CoT samples used by hybrid self-consistency methods (default: 21).",
+        help="CoT samples used by CoT-SC and hybrid methods (default: 21).",
     )
     benchmark.add_argument(
         "--cot-sc-temperature",
@@ -202,9 +203,6 @@ def _run_benchmark(
             "--react-best-effort-finalization only applies to methods that "
             "contain ReAct."
         )
-    if args.batch_size > 1 and args.method not in hybrid_methods:
-        raise ValueError("--batch-size > 1 is currently supported by hybrid methods only.")
-
     num_samples = args.num_samples or config.benchmark.num_samples
     seed = args.seed if args.seed is not None else config.benchmark.seed
     max_agent_steps = args.max_agent_steps or config.benchmark.max_agent_steps
@@ -218,12 +216,13 @@ def _run_benchmark(
         max_new_tokens=args.max_new_tokens or config.generation.max_new_tokens,
     )
     method_settings: dict[str, object] = {}
-    if args.method in hybrid_methods:
+    if args.method == "cot-sc" or args.method in hybrid_methods:
         method_settings.update(
             cot_sc_samples=args.cot_sc_samples,
             cot_sc_temperature=args.cot_sc_temperature,
-            cot_sc_fallback_threshold=args.cot_sc_samples / 2,
         )
+    if args.method in hybrid_methods:
+        method_settings["cot_sc_fallback_threshold"] = args.cot_sc_samples / 2
     if args.method in react_methods:
         method_settings["react_best_effort_finalization"] = (
             args.react_best_effort_finalization
@@ -287,6 +286,19 @@ def _run_benchmark(
         from react_reproduction.agents.cot import CoTAgent
 
         agent = CoTAgent(llm, generation)
+    elif args.method == "cot-sc":
+        from react_reproduction.agents.cot_sc import CoTSCAgent
+
+        cot_sc_generation = type(config.generation)(
+            temperature=args.cot_sc_temperature,
+            top_p=generation.top_p,
+            max_new_tokens=generation.max_new_tokens,
+        )
+        agent = CoTSCAgent(
+            llm,
+            cot_sc_generation,
+            num_samples=args.cot_sc_samples,
+        )
     else:
         from react_reproduction.tools.wikipedia import (
             WikipediaClient,
@@ -308,6 +320,7 @@ def _run_benchmark(
                 generation,
                 environment,
                 max_steps=max_agent_steps,
+                environment_factory=create_environment,
             )
         elif args.method == "react":
             from react_reproduction.agents.react import ReActAgent

@@ -81,7 +81,7 @@ def test_mock_benchmark_serializes_config_metrics_and_predictions() -> None:
 
         assert serialized_config["seed"] == 42
         assert serialized_config["model"] == "mock"
-        assert serialized_config["code_version"] == "0.9.0"
+        assert serialized_config["code_version"] == "0.10.0"
         assert serialized_config["batch_size"] == 1
         assert serialized_config["method_settings"] == {"cot_sc_samples": 3}
         assert serialized_metrics["exact_match"] == 0.5
