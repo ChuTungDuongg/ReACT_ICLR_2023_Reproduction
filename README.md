@@ -5,8 +5,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Paper-ICLR%202023-6f42c1" alt="ICLR 2023 paper">
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10+">
-  <img src="https://img.shields.io/badge/Status-Sprint%204%20Complete-238636" alt="Sprint 4 complete">
-  <img src="https://img.shields.io/badge/Tests-53%20Passing-18A0AE" alt="53 tests passing">
+  <img src="https://img.shields.io/badge/Status-Sprint%204%20%2B%20Hybrids-238636" alt="Sprint 4 plus hybrid methods">
+  <img src="https://img.shields.io/badge/Tests-67%20Passing-18A0AE" alt="67 tests passing">
   <img src="https://img.shields.io/badge/Interface-main.py-102A43" alt="CLI first">
 </p>
 
@@ -18,21 +18,23 @@
   <a href="#testing">🧪 Tests</a>
 </p>
 
-A framework-free, inspectable implementation of the Standard, Chain-of-Thought,
-Act-only, and ReAct methods for HotpotQA. It uses Hugging Face models and a
-live Wikipedia environment through one entry point: `main.py`.
+A framework-free, inspectable implementation of Standard, Chain-of-Thought,
+Act-only, ReAct, ReAct → CoT-SC, and CoT-SC → ReAct for HotpotQA. It uses
+Hugging Face models and a live Wikipedia environment through one entry point:
+`main.py`.
 
-All four methods now use the six manually composed HotpotQA demonstrations from
-paper Appendix C.1. The CLI defaults to `Qwen/Qwen2.5-7B-Instruct`; `--model`
-can still select another compatible causal language model.
+All methods reuse the six manually composed HotpotQA demonstrations from paper
+Appendix C.1. CoT-SC defaults to the paper setup of 21 samples at temperature
+0.7. The CLI defaults to `Qwen/Qwen2.5-7B-Instruct`; `--model` can still select
+another compatible causal language model.
 
 > Đây là reproduction study dùng modern instruction-tuned LLM, không phải exact
 > reproduction bằng PaLM-540B như paper gốc.
 
 ## ✅ Current status
 
-**Sprints 0, 1, 2, 3, and 4 are complete. Development stops at Sprint 4 in the
-current milestone.** Sprint 5, FEVER, ALFWorld, WebShop, and an interactive app
+**Sprints 0 through 4 and the two paper hybrid fallback policies are complete.**
+Large cross-method studies, FEVER, ALFWorld, WebShop, and an interactive app
 are not implemented.
 
 | Sprint | Scope | Status |
@@ -42,6 +44,7 @@ are not implemented.
 | 2 | Hugging Face provider, Standard, CoT | ✅ Complete |
 | 3 | Wikipedia Search/Lookup/Finish, Act-only, loop/max-step guards | ✅ Complete |
 | 4 | ReAct loop, live trajectories, trajectory persistence | ✅ Complete |
+| Extension | CoT-SC voting and both ReAct/CoT-SC fallback orders | ✅ Complete |
 | 5+ | Comparison, FEVER, analysis, optional extensions | ⏸️ Not started |
 
 The full requirements and sprint-by-sprint acceptance criteria are in the
@@ -95,7 +98,7 @@ Then run the requested five-sample benchmark:
     --show-trajectories
 ```
 
-### Sprint 4 HotpotQA notes for Colab
+### HotpotQA notes for Colab
 
 - `--num-samples` is the total number of examples, not a batch size. Sprint 4
   inference is sequential; the model is loaded once and reused for every
@@ -170,10 +173,50 @@ python main.py benchmark \
     --show-trajectories
 ```
 
+### Paper hybrid methods
+
+Run **ReAct → CoT-SC**. ReAct runs first; CoT-SC is used only when ReAct does
+not produce a natural `Finish` within its step budget:
+
+```bash
+python main.py benchmark \
+    --task hotpotqa \
+    --method react-cot-sc \
+    --model Qwen/Qwen2.5-7B-Instruct \
+    --num-samples 5 \
+    --seed 42 \
+    --max-agent-steps 7 \
+    --cot-sc-samples 21 \
+    --cot-sc-temperature 0.7
+```
+
+Run **CoT-SC → ReAct**. CoT-SC always runs first; ReAct is used when the most
+common normalized answer appears fewer than `n/2` times:
+
+```bash
+python main.py benchmark \
+    --task hotpotqa \
+    --method cot-sc-react \
+    --model Qwen/Qwen2.5-7B-Instruct \
+    --num-samples 5 \
+    --seed 42 \
+    --max-agent-steps 7 \
+    --cot-sc-samples 21 \
+    --cot-sc-temperature 0.7
+```
+
+The two commands intentionally match the paper defaults. For a pipeline smoke
+test, temporarily use `--cot-sc-samples 3`; use 21 for a paper-style run. Do
+not start at 500 examples: CoT-SC → ReAct requires at least 21 model generations
+per example (10,500 for 500 examples), while ReAct → CoT-SC pays that cost only
+on fallback. Add `--show-trajectories` only for small diagnostic runs because it
+prints every CoT sample and every ReAct step.
+
 Useful overrides include `--device auto|cpu|cuda|mps`, `--max-agent-steps`,
-`--max-new-tokens`, `--temperature`, `--top-p`, `--log-level`, and
-`--trust-remote-code`. The default deterministic generation uses temperature
-`0.0`, top-p `1.0`, and seed `42`.
+`--max-new-tokens`, `--temperature`, `--top-p`, `--cot-sc-samples`,
+`--cot-sc-temperature`, `--log-level`, and `--trust-remote-code`. ReAct uses
+the normal generation temperature (default 0.0); only CoT-SC uses
+`--cot-sc-temperature` (default 0.7).
 
 Act/ReAct treats `Search` as an article-opening operation for a concise entity
 or title, while `Lookup` reads details inside the current article. A second
@@ -183,10 +226,11 @@ configured agent step is always reserved for a best-effort answer instead of
 spending the full budget on tools and returning an empty prediction.
 
 `--model` is optional and defaults to `Qwen/Qwen2.5-7B-Instruct`. Standard,
-CoT, Act-only, and ReAct each receive their corresponding six-example prompt
-ablation from Appendix C.1; the target example still contains only its question.
+CoT, Act-only, ReAct, and both hybrids receive the corresponding six-example
+prompt material from Appendix C.1; the target example still contains only its
+question.
 
-## 🧩 How the four methods work
+## 🧩 How the six CLI methods work
 
 | Method | Explicit reasoning | Wikipedia | Execution path |
 |---|---:|---:|---|
@@ -194,6 +238,8 @@ ablation from Appendix C.1; the target example still contains only its question.
 | CoT | Yes | No | Question → reasoning → answer |
 | Act-only | No | Yes | Action ↔ Observation → Finish |
 | ReAct | Yes | Yes | Thought → Action → Observation → Finish |
+| ReAct → CoT-SC | Yes | On ReAct leg | ReAct; on failure, 21 CoT samples → vote |
+| CoT-SC → ReAct | Yes | On fallback | 21 CoT samples → vote; low confidence → ReAct |
 
 The agents are direct Python loops, not wrappers around LangChain, LangGraph,
 CrewAI, or AutoGen. This keeps parsing, environment state, termination reasons,
@@ -206,8 +252,8 @@ main.py
   → CLI + validated YAML configuration
   → deterministic HotpotQA sample
   → HuggingFaceProvider (CUDA/CPU/MPS auto-detection)
-  → selected agent
-      └─ Act/ReAct → WikipediaEnvironment → MediaWiki API
+  → selected Standard / CoT / Act / ReAct / hybrid agent
+      └─ ReAct leg → WikipediaEnvironment → MediaWiki API
   → official HotpotQA answer/supporting-fact/joint evaluator
   → flushed JSONL + JSON + live/file logs
 ```
@@ -226,7 +272,7 @@ main.py
 │   └── pdf/                        # Stable human-facing roadmap PDF
 ├── outputs/                        # Ignored runtime benchmark artifacts
 ├── src/react_reproduction/
-│   ├── agents/                     # Standard, CoT, Act-only, ReAct loops/parsers
+│   ├── agents/                     # Base agents, CoT-SC voting, hybrid policies
 │   ├── datasets/                   # Shared example + HotpotQA loader
 │   ├── evaluation/                 # Full official metrics + serializable schemas
 │   ├── experiments/                # Run orchestration and artifact writers
@@ -236,7 +282,7 @@ main.py
 │   ├── cli.py                      # Argument parsing and dependency wiring
 │   ├── config.py                   # Typed YAML/environment configuration
 │   └── logging_utils.py            # UTF-8 live stdout + run.log
-└── tests/                           # 53 deterministic tests
+└── tests/                           # 67 deterministic tests
 ```
 
 Each first-level directory has its own README:
@@ -252,19 +298,20 @@ Each first-level directory has its own README:
 Every benchmark gets an isolated UTC-stamped directory:
 
 ```text
-outputs/hotpotqa/react/<UTC timestamp>/
+outputs/hotpotqa/<method>/<UTC timestamp>/
 ├── config.json          # Complete reproducibility settings
 ├── metrics.json         # Official HotpotQA + operational metrics
 ├── predictions.jsonl    # One record per example, flushed immediately
-├── trajectories.jsonl   # Act/ReAct steps, one flushed record per example
+├── trajectories.jsonl   # Act/ReAct/hybrid phases, one record per example
 └── run.log              # Same inspectable progress retained from stdout
 ```
 
 `predictions.jsonl` is flushed after every example for every method and includes
 per-example answer, supporting-fact, and joint scores.
-`trajectories.jsonl` is created for interactive Act/ReAct runs and contains the
-model output, Thought, canonical Action, and actual environment Observation for
-each step.
+`trajectories.jsonl` is created for Act/ReAct/hybrid runs and contains phase
+labels (`cot_sc` or `react`), model output, Thought, canonical Action, and actual
+environment Observation. Hybrid `predictions.jsonl` records also include vote
+counts, confidence, selected path, and whether fallback was used.
 
 ## 📊 Verified development smoke result
 
@@ -290,12 +337,13 @@ python main.py --help
 python main.py doctor
 ```
 
-The 53-test suite is offline/model-free and covers configuration/CLI smoke,
+The 67-test suite is offline/model-free and covers configuration/CLI smoke,
 seeded HotpotQA loading, official answer/supporting-fact/joint metrics, Hugging Face agent wiring,
 six-example paper prompt packs, numbered-label parsing, Standard/CoT parsing,
 Wikipedia Search/Lookup/Finish, ambiguity, repeated
 Lookup, loop detection, max steps, Act-only/ReAct recovery, incremental
-prediction persistence, and trajectory persistence.
+prediction persistence, CoT-SC voting/thresholds, both hybrid fallback orders,
+and trajectory persistence.
 
 ## ⚙️ Dependencies
 
@@ -318,6 +366,8 @@ FP32. `bitsandbytes` is intentionally not a required dependency.
   expected.
 - Wikipedia search/content can change, and network availability affects
   Act/ReAct runs.
+- Paper-style CoT-SC uses 21 generations per evaluated example, so hybrid runs
+  can cost substantially more time and GPU quota than plain ReAct.
 - A 3B model may exceed some local machines; Colab GPU memory and runtime tier
   determine feasible speed. Use a smaller model only for pipeline debugging.
 - Generated text can violate the action grammar. The parser takes the first

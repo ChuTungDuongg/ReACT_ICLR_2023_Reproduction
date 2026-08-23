@@ -1,6 +1,10 @@
 """Tests for structured model-output parsing."""
 
-from react_reproduction.agents.parsing import parse_final_answer, parse_reasoning
+from react_reproduction.agents.parsing import (
+    parse_explicit_final_answer,
+    parse_final_answer,
+    parse_reasoning,
+)
 
 
 def test_parse_final_answer_prefers_explicit_marker() -> None:
@@ -10,6 +14,10 @@ def test_parse_final_answer_prefers_explicit_marker() -> None:
 
 def test_parse_final_answer_falls_back_to_last_non_empty_line() -> None:
     assert parse_final_answer("Some context\nParis\n") == "Paris"
+
+
+def test_parse_explicit_final_answer_rejects_unlabeled_output() -> None:
+    assert parse_explicit_final_answer("Some reasoning\nParis") == ""
 
 
 def test_parse_reasoning_returns_text_before_final_answer() -> None:

@@ -75,6 +75,7 @@ class BenchmarkRunConfig:
     seed: int
     generation: Mapping[str, Any]
     max_agent_steps: int
+    method_settings: Mapping[str, Any] = field(default_factory=dict)
     device: str = "auto"
     code_version: str = __version__
     timestamp: str = field(default_factory=lambda: _utc_now().isoformat())
@@ -88,6 +89,7 @@ class BenchmarkRunConfig:
     def to_dict(self) -> dict[str, Any]:
         result = asdict(self)
         result["generation"] = dict(self.generation)
+        result["method_settings"] = dict(self.method_settings)
         return result
 
 
@@ -127,7 +129,12 @@ def run_hotpotqa_benchmark(
         timestamp=config.timestamp,
     )
     write_config(active_artifacts, config.to_dict())
-    persist_trajectories = config.method in {"act", "react"}
+    persist_trajectories = config.method in {
+        "act",
+        "react",
+        "react-cot-sc",
+        "cot-sc-react",
+    }
     if persist_trajectories:
         initialize_trajectories(active_artifacts)
 
@@ -196,6 +203,7 @@ def run_hotpotqa_benchmark(
             joint_f1=joint_f1,
             joint_precision=joint_precision,
             joint_recall=joint_recall,
+            agent_metadata=output.metadata,
             steps=output.steps,
             tool_calls=output.tool_calls,
             termination_reason=output.termination_reason,
@@ -217,7 +225,8 @@ def run_hotpotqa_benchmark(
 
         if show_trajectories:
             for step in output.trajectory:
-                active_logger.info("Step %d", step.step_index)
+                phase_suffix = f" [{step.phase}]" if step.phase else ""
+                active_logger.info("Step %d%s", step.step_index, phase_suffix)
                 if step.thought:
                     active_logger.info("Thought: %s", step.thought)
                 if step.action:
@@ -228,6 +237,8 @@ def run_hotpotqa_benchmark(
         displayed_prediction = output.prediction or "<EMPTY>"
         active_logger.info("Prediction: %s", displayed_prediction)
         active_logger.info("Gold: %s", example.gold_answer)
+        if output.metadata:
+            active_logger.info("Agent metadata: %s", dict(output.metadata))
         active_logger.info(
             "Answer | EM: %.4f | F1: %.4f",
             float(answer_em),

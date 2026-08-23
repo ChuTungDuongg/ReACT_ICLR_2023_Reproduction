@@ -5,8 +5,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Paper-ICLR%202023-6f42c1" alt="Paper ICLR 2023">
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10+">
-  <img src="https://img.shields.io/badge/Trạng_thái-Hoàn%20tất%20Sprint%204-238636" alt="Hoàn tất Sprint 4">
-  <img src="https://img.shields.io/badge/Tests-53%20PASS-18A0AE" alt="53 tests PASS">
+  <img src="https://img.shields.io/badge/Trạng_thái-Sprint%204%20%2B%20Hybrid-238636" alt="Sprint 4 và các phương pháp hybrid">
+  <img src="https://img.shields.io/badge/Tests-67%20PASS-18A0AE" alt="67 tests PASS">
   <img src="https://img.shields.io/badge/Điểm_vào-main.py-102A43" alt="Chạy bằng main.py">
 </p>
 
@@ -18,14 +18,15 @@
   <a href="#kiểm-thử">🧪 Kiểm thử</a>
 </p>
 
-Đây là repository tái hiện các phương pháp **Standard**, **Chain-of-Thought
-(CoT)**, **Act-only** và **ReAct** trên HotpotQA. Model được chạy bằng Hugging
-Face; Act-only và ReAct có thể tìm kiếm Wikipedia thật. Toàn bộ chương trình có
-một điểm vào duy nhất là `main.py`.
+Đây là repository tái hiện **Standard**, **Chain-of-Thought**, **Act-only**,
+**ReAct**, **ReAct → CoT-SC** và **CoT-SC → ReAct** trên HotpotQA. Model được
+chạy bằng Hugging Face; các nhánh ReAct có thể tìm kiếm Wikipedia thật. Toàn bộ
+chương trình có một điểm vào duy nhất là `main.py`.
 
-Cả bốn phương pháp hiện dùng đúng bộ 6 ví dụ HotpotQA viết thủ công trong
-Appendix C.1 của paper. CLI mặc định chọn `Qwen/Qwen2.5-7B-Instruct`; vẫn có thể
-dùng `--model` để chọn model causal LM tương thích khác.
+Tất cả phương pháp tái sử dụng đúng bộ 6 ví dụ HotpotQA viết thủ công trong
+Appendix C.1. CoT-SC mặc định dùng cấu hình paper: 21 samples, temperature 0.7.
+CLI mặc định chọn `Qwen/Qwen2.5-7B-Instruct`; vẫn có thể dùng `--model` để chọn
+model causal LM tương thích khác.
 
 > Đây là reproduction study dùng modern instruction-tuned LLM. Nó không phải
 > bản tái hiện chính xác PaLM-540B của paper gốc, vì model, hạ tầng và trạng thái
@@ -33,8 +34,9 @@ dùng `--model` để chọn model causal LM tương thích khác.
 
 ## ✅ Trạng thái hiện tại
 
-Repository đã hoàn tất **Sprint 0 đến Sprint 4** và dừng đúng tại Sprint 4.
-Sprint 5, FEVER, ALFWorld, WebShop và interactive app chưa được triển khai.
+Repository đã hoàn tất **Sprint 0 đến Sprint 4 cùng hai hybrid fallback trong
+paper**. Benchmark so sánh lớn, FEVER, ALFWorld, WebShop và interactive app chưa
+được triển khai.
 
 | Sprint | Nội dung | Trạng thái |
 |---:|---|---|
@@ -43,6 +45,7 @@ Sprint 5, FEVER, ALFWorld, WebShop và interactive app chưa được triển kh
 | 2 | Hugging Face LLM, Standard và CoT | ✅ Hoàn tất |
 | 3 | Wikipedia environment và Act-only | ✅ Hoàn tất |
 | 4 | ReAct, live trajectory và lưu trajectory | ✅ Hoàn tất |
+| Mở rộng | CoT-SC voting và hai thứ tự fallback ReAct/CoT-SC | ✅ Hoàn tất |
 | 5+ | So sánh lớn, FEVER, phân tích và phần mở rộng | ⏸️ Chưa bắt đầu |
 
 Roadmap, requirements và acceptance criteria chi tiết nằm trong
@@ -103,7 +106,7 @@ Sau đó chạy ReAct với 5 mẫu HotpotQA:
     --show-trajectories
 ```
 
-### Ghi chú Sprint 4 khi chạy HotpotQA trên Colab
+### Ghi chú HotpotQA khi chạy trên Colab
 
 - `--num-samples` là tổng số example, không phải batch size. Sprint 4 chạy tuần
   tự từng example; model chỉ load một lần rồi được tái sử dụng.
@@ -160,10 +163,49 @@ Thay `standard` bằng `cot`, `act` hoặc `react` để đổi phương pháp. 
 và ReAct, nên thêm `--show-trajectories` để xem trực tiếp Action/Observation và
 Thought nếu có.
 
+### Hai phương pháp hybrid trong paper
+
+Chạy **ReAct → CoT-SC**. ReAct chạy trước; chỉ fallback sang CoT-SC khi ReAct
+không tạo được `Finish` tự nhiên trong step budget:
+
+```bash
+python main.py benchmark \
+    --task hotpotqa \
+    --method react-cot-sc \
+    --model Qwen/Qwen2.5-7B-Instruct \
+    --num-samples 5 \
+    --seed 42 \
+    --max-agent-steps 7 \
+    --cot-sc-samples 21 \
+    --cot-sc-temperature 0.7
+```
+
+Chạy **CoT-SC → ReAct**. CoT-SC luôn chạy trước; fallback sang ReAct khi đáp án
+đã normalize có số phiếu cao nhất xuất hiện ít hơn `n/2` lần:
+
+```bash
+python main.py benchmark \
+    --task hotpotqa \
+    --method cot-sc-react \
+    --model Qwen/Qwen2.5-7B-Instruct \
+    --num-samples 5 \
+    --seed 42 \
+    --max-agent-steps 7 \
+    --cot-sc-samples 21 \
+    --cot-sc-temperature 0.7
+```
+
+Hai lệnh trên cố ý giữ default của paper. Khi smoke test pipeline, có thể tạm
+dùng `--cot-sc-samples 3`; benchmark kiểu paper dùng 21. Không nên bắt đầu ngay
+với 500 examples: CoT-SC → ReAct cần ít nhất 21 lượt generation mỗi example
+(10.500 lượt cho 500 examples), còn ReAct → CoT-SC chỉ chịu chi phí đó khi
+fallback. Chỉ thêm `--show-trajectories` cho run nhỏ vì nó in mọi CoT sample và
+mọi bước ReAct.
+
 `--model` là tùy chọn; nếu bỏ qua, CLI tự dùng
-`Qwen/Qwen2.5-7B-Instruct`. Standard, CoT, Act-only và ReAct nhận prompt pack
-6-shot tương ứng trong Appendix C.1; example cần chấm vẫn chỉ đưa câu hỏi vào
-model, không đưa supporting paragraphs.
+`Qwen/Qwen2.5-7B-Instruct`. Standard, CoT, Act-only, ReAct và hai hybrid nhận
+prompt material 6-shot tương ứng trong Appendix C.1; example cần chấm vẫn chỉ
+đưa câu hỏi vào model, không đưa supporting paragraphs.
 
 Các tham số hữu ích:
 
@@ -174,18 +216,22 @@ Các tham số hữu ích:
 | `--seed 42` | Cố định cách lấy mẫu và random seed |
 | `--max-agent-steps 7` | Số bước tối đa của Act/ReAct |
 | `--max-new-tokens 256` | Số token sinh tối đa trong một lượt |
+| `--cot-sc-samples 21` | Số CoT samples dùng để majority vote |
+| `--cot-sc-temperature 0.7` | Sampling temperature riêng của CoT-SC |
 | `--show-trajectories` | In từng Thought/Action/Observation |
+| `--log-level INFO` | Mức chi tiết của log |
 
 Act/ReAct coi `Search` là thao tác mở bài theo entity/title, không phải web
 search. `Lookup` đọc chi tiết trong bài hiện tại. `Search` giống hệt lần hai sẽ
 bị bỏ qua kèm hướng dẫn recovery; lần ba được ghi nhận là `action_loop` và agent
 dùng lượt còn lại để `Finish`. Bước cuối trong `--max-agent-steps` luôn được dành
-cho một câu trả lời best-effort thay vì tiếp tục gọi tool rồi trả prediction rỗng.
-| `--log-level INFO` | Mức chi tiết của log |
+cho một câu trả lời best-effort thay vì tiếp tục gọi tool rồi trả prediction
+rỗng. ReAct trong hai hybrid tắt best-effort này để failure thực sự kích hoạt
+fallback đúng theo paper.
 
 <a id="cách-hoạt-động"></a>
 
-## 🧩 Bốn phương pháp hoạt động như thế nào?
+## 🧩 Sáu phương pháp CLI hoạt động như thế nào?
 
 | Phương pháp | Có reasoning rõ ràng? | Dùng Wikipedia? | Luồng xử lý |
 |---|---:|---:|---|
@@ -193,6 +239,8 @@ cho một câu trả lời best-effort thay vì tiếp tục gọi tool rồi tr
 | CoT | Có | Không | Câu hỏi → suy luận → câu trả lời |
 | Act-only | Không | Có | Action ↔ Observation → Finish |
 | ReAct | Có | Có | Thought → Action → Observation → Finish |
+| ReAct → CoT-SC | Có | Ở nhánh ReAct | ReAct; nếu fail, 21 CoT samples → vote |
+| CoT-SC → ReAct | Có | Khi fallback | 21 CoT samples → vote; confidence thấp → ReAct |
 
 Giải thích ngắn:
 
@@ -201,6 +249,10 @@ Giải thích ngắn:
 - **Act-only** không lưu Thought; model chỉ chọn hành động Wikipedia.
 - **ReAct** kết hợp reasoning và hành động. Observation luôn do environment
   tạo ra, không tin Observation do model tự viết.
+- **ReAct → CoT-SC** giữ đáp án ReAct khi có `Finish` tự nhiên; nếu ReAct fail
+  thì sample nhiều CoT và majority vote.
+- **CoT-SC → ReAct** majority vote trước; chỉ gọi Wikipedia/ReAct khi vote cao
+  nhất không đạt ngưỡng `n/2` của paper.
 
 Core agent được viết trực tiếp bằng Python, không dùng LangChain, LangGraph,
 CrewAI hay AutoGen. Nhờ vậy có thể đọc rõ parser, state, vòng lặp và nguyên nhân
@@ -213,8 +265,8 @@ main.py
   → CLI đọc tham số và config
   → HotpotQA loader lấy mẫu theo seed
   → HuggingFaceProvider load tokenizer/model
-  → agent Standard / CoT / Act-only / ReAct
-       └─ Act/ReAct → WikipediaEnvironment → MediaWiki API
+  → agent Standard / CoT / Act / ReAct / hybrid đã chọn
+       └─ nhánh ReAct → WikipediaEnvironment → MediaWiki API
   → evaluator chính thức answer/supporting-fact/joint của HotpotQA
   → lưu config, prediction, trajectory, metrics và log
 ```
@@ -231,7 +283,7 @@ main.py
 ├── output/                         # Tài liệu ổn định, ví dụ roadmap PDF
 ├── outputs/                        # Kết quả benchmark runtime, bị Git ignore
 ├── src/react_reproduction/
-│   ├── agents/                     # Standard, CoT, Act-only, ReAct và parser
+│   ├── agents/                     # Base agents, CoT-SC voting, hybrid policies
 │   ├── datasets/                   # BenchmarkExample và HotpotQA loader
 │   ├── evaluation/                 # Full official metrics và schema kết quả
 │   ├── experiments/                # Runner và ghi artifact
@@ -241,7 +293,7 @@ main.py
 │   ├── cli.py                      # Khai báo command và kết nối component
 │   ├── config.py                   # Đọc, kiểm tra YAML và biến môi trường
 │   └── logging_utils.py            # Live stdout UTF-8 và run.log
-└── tests/                           # 53 unit/integration-style tests
+└── tests/                           # 67 unit/integration-style tests
 ```
 
 README tiếng Việt của từng thư mục:
@@ -257,7 +309,7 @@ README tiếng Việt của từng thư mục:
 Mỗi benchmark tạo một thư mục riêng theo thời gian UTC:
 
 ```text
-outputs/hotpotqa/react/<UTC timestamp>/
+outputs/hotpotqa/<method>/<UTC timestamp>/
 ├── config.json
 ├── metrics.json
 ├── predictions.jsonl
@@ -269,12 +321,14 @@ outputs/hotpotqa/react/<UTC timestamp>/
 |---|---|
 | `config.json` | Lưu model, dataset, method, seed, generation config và device |
 | `predictions.jsonl` | Mỗi dòng là kết quả của một example; flush ngay sau example |
-| `trajectories.jsonl` | Mỗi dòng là toàn bộ trajectory của một Act/ReAct example |
+| `trajectories.jsonl` | Mỗi dòng là trajectory có phase Act/ReAct/hybrid |
 | `metrics.json` | Full official HotpotQA metrics, runtime, steps/tool calls và lý do dừng |
 | `run.log` | Bản log được lưu song song với stdout |
 
-`--show-trajectories` làm stdout hiển thị từng Thought, Action, Observation và
-raw model output để dễ debug trên terminal hoặc ngay trong cell Colab.
+`trajectories.jsonl` của hybrid ghi phase `cot_sc`/`react`, model output,
+Thought, Action và Observation. `predictions.jsonl` còn ghi vote count,
+confidence, nhánh được chọn và có fallback hay không. `--show-trajectories` in
+các thông tin này để debug trên terminal hoặc Colab.
 
 ## 📊 Smoke benchmark đã xác minh
 
@@ -300,7 +354,7 @@ python main.py --help
 python main.py doctor
 ```
 
-53 tests hiện tại kiểm tra:
+67 tests hiện tại kiểm tra:
 
 - CLI, cấu hình và `doctor`;
 - HotpotQA loading, validation và sampling theo seed;
@@ -309,6 +363,7 @@ python main.py doctor
 - Search/Lookup/Finish, trang thiếu hoặc mơ hồ;
 - Lookup nhiều lần, loop detection và max-step;
 - Act-only/ReAct, parsing recovery và trajectory history;
+- CoT-SC voting/threshold cùng cả hai thứ tự hybrid fallback;
 - flush `predictions.jsonl` và `trajectories.jsonl` theo từng example.
 
 Unit tests không tải model và không gọi Wikipedia thật. Chúng sử dụng scripted
@@ -344,6 +399,8 @@ Nên đọc theo thứ tự sau:
 - Milestone hiện tại dừng ở Sprint 4; chưa có benchmark so sánh quy mô lớn.
 - Không thể kỳ vọng tái hiện chính xác số liệu PaLM-540B của paper gốc.
 - Wikipedia và kết quả search có thể thay đổi theo thời gian.
+- CoT-SC kiểu paper sinh 21 lượt cho mỗi example, nên hybrid tốn thời gian và
+  GPU quota hơn ReAct thuần đáng kể.
 - Model 3B có thể chậm hoặc thiếu RAM/VRAM trên máy cá nhân; Colab GPU phù hợp
   hơn cho command mục tiêu.
 - Model đôi khi sinh sai format. Parser ghi nhận lỗi, lấy Action hợp lệ đầu tiên,

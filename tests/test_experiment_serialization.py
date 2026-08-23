@@ -56,6 +56,7 @@ def test_mock_benchmark_serializes_config_metrics_and_predictions() -> None:
         seed=42,
         generation={"temperature": 0.0, "top_p": 1.0, "max_new_tokens": 16},
         max_agent_steps=7,
+        method_settings={"cot_sc_samples": 3},
         timestamp="2026-08-23T01:30:00+00:00",
     )
 
@@ -80,7 +81,8 @@ def test_mock_benchmark_serializes_config_metrics_and_predictions() -> None:
 
         assert serialized_config["seed"] == 42
         assert serialized_config["model"] == "mock"
-        assert serialized_config["code_version"] == "0.7.0"
+        assert serialized_config["code_version"] == "0.8.0"
+        assert serialized_config["method_settings"] == {"cot_sc_samples": 3}
         assert serialized_metrics["exact_match"] == 0.5
         assert serialized_metrics["f1"] == 0.5
         assert serialized_metrics["precision"] == 0.5
@@ -101,6 +103,7 @@ def test_mock_benchmark_serializes_config_metrics_and_predictions() -> None:
         assert json.loads(prediction_lines[0])["gold_supporting_facts"] == [
             ["Article A", 0]
         ]
+        assert json.loads(prediction_lines[0])["agent_metadata"] == {}
         log_text = log_stream.getvalue()
         assert "[1/2] example_id=example-1" in log_text
         assert "Question: First question?" in log_text
@@ -173,6 +176,69 @@ def test_react_benchmark_flushes_one_trajectory_per_example() -> None:
         assert serialized["termination_reason"] == "completed"
         assert serialized["steps"][0]["thought"] == "done"
         assert serialized["steps"][0]["action"] == "Finish[1879]"
+    finally:
+        if test_output_root.exists():
+            resolved_test_root = test_output_root.resolve()
+            assert resolved_test_root.parent == (PROJECT_ROOT / "outputs").resolve()
+            shutil.rmtree(resolved_test_root)
+
+
+def test_hybrid_benchmark_persists_phase_and_vote_metadata() -> None:
+    test_output_root = PROJECT_ROOT / "outputs" / f"_pytest_{uuid4().hex}"
+    examples = [BenchmarkExample("example-1", "Where?", "Berlin")]
+    config = BenchmarkRunConfig(
+        model="scripted",
+        dataset="hotpotqa/hotpot_qa:distractor:validation",
+        task="hotpotqa",
+        method="react-cot-sc",
+        num_samples=1,
+        seed=42,
+        generation={"temperature": 0.0, "top_p": 1.0, "max_new_tokens": 16},
+        max_agent_steps=7,
+        method_settings={"cot_sc_samples": 3, "cot_sc_temperature": 0.7},
+        timestamp="2026-08-23T01:32:00+00:00",
+    )
+
+    class HybridPredictor:
+        def predict(self, example: BenchmarkExample) -> AgentResult:
+            return AgentResult(
+                prediction="Berlin",
+                steps=1,
+                tool_calls=0,
+                termination_reason="fallback_cot_sc",
+                trajectory=(
+                    TrajectoryStep(
+                        step_index=1,
+                        model_output="Answer: Berlin",
+                        thought="Berlin is the answer.",
+                        phase="cot_sc",
+                    ),
+                ),
+                metadata={
+                    "fallback_used": True,
+                    "cot_sc_winning_count": 2,
+                },
+            )
+
+    try:
+        result = run_hotpotqa_benchmark(
+            examples,
+            HybridPredictor(),
+            config,
+            output_root=test_output_root,
+        )
+        prediction = json.loads(
+            result.artifacts.predictions_path.read_text("utf-8").splitlines()[0]
+        )
+        trajectory = json.loads(
+            result.artifacts.trajectories_path.read_text("utf-8").splitlines()[0]
+        )
+
+        assert prediction["agent_metadata"] == {
+            "fallback_used": True,
+            "cot_sc_winning_count": 2,
+        }
+        assert trajectory["steps"][0]["phase"] == "cot_sc"
     finally:
         if test_output_root.exists():
             resolved_test_root = test_output_root.resolve()

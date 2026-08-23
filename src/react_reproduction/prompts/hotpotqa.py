@@ -1,4 +1,4 @@
-"""Paper-style HotpotQA prompts for all four prompting methods."""
+"""Paper-style HotpotQA prompts for the four base prompting methods."""
 
 from __future__ import annotations
 

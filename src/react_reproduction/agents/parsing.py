@@ -35,14 +35,22 @@ class ActionParseError(ValueError):
 
 def parse_final_answer(model_output: str) -> str:
     """Extract a concise answer while tolerating minor format drift."""
-    matches = _FINAL_ANSWER.findall(model_output.strip())
-    if matches:
-        return matches[-1].strip()
+    explicit_answer = parse_explicit_final_answer(model_output)
+    if explicit_answer:
+        return explicit_answer
 
     non_empty_lines = [line.strip() for line in model_output.splitlines() if line.strip()]
     if not non_empty_lines:
         return ""
     return non_empty_lines[-1].strip()
+
+
+def parse_explicit_final_answer(model_output: str) -> str:
+    """Extract only a labeled answer, for voting that must reject malformed output."""
+    matches = _FINAL_ANSWER.findall(model_output.strip())
+    if matches:
+        return matches[-1].strip()
+    return ""
 
 
 def parse_reasoning(model_output: str) -> str | None:

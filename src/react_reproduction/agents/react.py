@@ -25,6 +25,7 @@ class ReActAgent(BaseAgent):
         environment: WikipediaEnvironment,
         *,
         max_steps: int,
+        best_effort_finalization: bool = True,
     ) -> None:
         if max_steps <= 0:
             raise ValueError("max_steps must be positive.")
@@ -32,6 +33,7 @@ class ReActAgent(BaseAgent):
         self._generation = generation
         self._environment = environment
         self._max_steps = max_steps
+        self._best_effort_finalization = best_effort_finalization
 
     def predict(self, example: BenchmarkExample) -> AgentResult:
         self._environment.reset()
@@ -42,8 +44,11 @@ class ReActAgent(BaseAgent):
 
         for step_index in range(1, self._max_steps + 1):
             force_finish = (
-                pending_termination_reason is not None
-                or step_index == self._max_steps
+                self._best_effort_finalization
+                and (
+                    pending_termination_reason is not None
+                    or step_index == self._max_steps
+                )
             )
             model_output = self._llm.generate(
                 build_react_prompt(
@@ -145,7 +150,7 @@ class ReActAgent(BaseAgent):
                         ),
                         trajectory=tuple(trajectory),
                     )
-                if step_index < self._max_steps:
+                if self._best_effort_finalization and step_index < self._max_steps:
                     pending_termination_reason = (
                         execution.termination_reason or "terminated"
                     )

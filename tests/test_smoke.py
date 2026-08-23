@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from react_reproduction.cli import DEFAULT_MODEL, build_parser
 
 
@@ -35,6 +37,35 @@ def test_benchmark_defaults_to_qwen_7b() -> None:
     )
 
     assert args.model == DEFAULT_MODEL == "Qwen/Qwen2.5-7B-Instruct"
+
+
+@pytest.mark.parametrize("method", ["react-cot-sc", "cot-sc-react"])
+def test_hybrid_methods_expose_paper_cot_sc_defaults(method: str) -> None:
+    args = build_parser(PROJECT_ROOT).parse_args(
+        ["benchmark", "--task", "hotpotqa", "--method", method]
+    )
+
+    assert args.cot_sc_samples == 21
+    assert args.cot_sc_temperature == pytest.approx(0.7)
+
+
+def test_hybrid_cot_sc_settings_are_overridable() -> None:
+    args = build_parser(PROJECT_ROOT).parse_args(
+        [
+            "benchmark",
+            "--task",
+            "hotpotqa",
+            "--method",
+            "react-cot-sc",
+            "--cot-sc-samples",
+            "5",
+            "--cot-sc-temperature",
+            "0.9",
+        ]
+    )
+
+    assert args.cot_sc_samples == 5
+    assert args.cot_sc_temperature == pytest.approx(0.9)
 
 
 def test_doctor_loads_default_config() -> None:

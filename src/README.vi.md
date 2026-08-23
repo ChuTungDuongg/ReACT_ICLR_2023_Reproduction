@@ -30,7 +30,7 @@ main.py
   → load_project_config()
   → load_hotpotqa()
   → HuggingFaceProvider
-  → StandardAgent / CoTAgent / ActOnlyAgent / ReActAgent
+  → base agent / CoT-SC / hybrid đã chọn
   → run_hotpotqa_benchmark()
   → outputs/<task>/<method>/<timestamp>/
 ```
@@ -45,6 +45,11 @@ main.py
 | `cot.py` | Gọi model một lần, lưu reasoning rồi lấy final answer |
 | `act.py` | Lặp Action → Observation, không lưu Thought |
 | `react.py` | Lặp Thought → Action → Observation đến khi Finish/dừng |
+| `cot_sc.py` | Sample nhiều CoT, normalize đáp án và majority vote |
+| `hybrid.py` | ReAct → CoT-SC và CoT-SC → ReAct theo fallback của paper |
+
+Hybrid trajectory có phase `react`/`cot_sc`; prediction metadata lưu vote
+confidence, nhánh được chọn và trạng thái fallback.
 
 ## `tools/wikipedia.py` quản lý state như thế nào?
 
@@ -68,5 +73,5 @@ main.py
 - Luôn giữ seed và config trong artifact để có thể tái hiện run.
 - Không triển khai feature của sprint chưa được cho phép.
 
-Implementation hiện hoàn tất đến Sprint 4. Model mặc định của CLI là
-`Qwen/Qwen2.5-7B-Instruct`.
+Implementation hiện hoàn tất Sprint 4 cùng hai hybrid fallback trong paper.
+Model mặc định của CLI là `Qwen/Qwen2.5-7B-Instruct`.

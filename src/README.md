@@ -16,7 +16,7 @@ package.
 | `react_reproduction/datasets/` | Defines `BenchmarkExample` and deterministic HotpotQA loading/sampling. |
 | `react_reproduction/llm/` | Defines the provider interface and lazy Hugging Face implementation with automatic device/dtype selection. |
 | `react_reproduction/prompts/` | Builds Standard, CoT, Act-only, and ReAct prompts from the six manually composed HotpotQA examples in paper Appendix C.1. |
-| `react_reproduction/agents/` | Contains result/trajectory contracts, output parsers, and all four agent implementations. |
+| `react_reproduction/agents/` | Contains contracts, parsers, four base agents, CoT-SC voting, and both hybrids. |
 | `react_reproduction/tools/` | Calls MediaWiki and owns Search/Lookup/Finish state, ambiguity, loop, and max-step behavior. |
 | `react_reproduction/evaluation/` | Computes official answer/supporting-fact/joint metrics and defines JSON-ready records. |
 | `react_reproduction/experiments/` | Runs examples and incrementally persists predictions, trajectories, metrics, config, and logs. |
@@ -29,9 +29,15 @@ CLI → HotpotQA → Hugging Face model → agent
     → evaluator → outputs/<task>/<method>/<timestamp>/
 ```
 
-The implementation is complete through Sprint 4. Qwen2.5-7B-Instruct is the
-CLI default model. Keep model/network work lazy, keep the core loops
-framework-free, and preserve deterministic seeded behavior.
+The implementation is complete through Sprint 4 plus both paper hybrid
+fallback policies. Qwen2.5-7B-Instruct is the CLI default model. Keep
+model/network work lazy, keep the core loops framework-free, and preserve
+deterministic seeded behavior.
+
+`agents/cot_sc.py` implements normalized majority voting over sampled CoT
+answers. `agents/hybrid.py` implements ReAct → CoT-SC and CoT-SC → ReAct with
+the paper fallback rules. Hybrid trajectories carry explicit `react`/`cot_sc`
+phase labels and prediction metadata records vote confidence and selected path.
 
 For Act/ReAct, `Search` accepts a concise entity or page title while `Lookup`
 reads matching sentences inside the open article. A second identical `Search`

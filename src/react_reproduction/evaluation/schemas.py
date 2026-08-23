@@ -32,6 +32,7 @@ class PredictionRecord:
     joint_f1: float
     joint_precision: float
     joint_recall: float
+    agent_metadata: Mapping[str, Any]
     steps: int
     tool_calls: int
     termination_reason: str

@@ -13,7 +13,7 @@ outputs/<task>/<method>/<UTC timestamp>/
 ├── config.json
 ├── metrics.json
 ├── predictions.jsonl
-├── trajectories.jsonl   # Có ở Act-only và ReAct
+├── trajectories.jsonl   # Có ở Act-only, ReAct và hybrid
 └── run.log
 ```
 
@@ -21,7 +21,7 @@ outputs/<task>/<method>/<UTC timestamp>/
 
 - `config.json`: lưu toàn bộ cấu hình cần để hiểu/tái hiện run.
 - `predictions.jsonl`: mỗi example một dòng, được flush ngay sau example.
-- `trajectories.jsonl`: mỗi Act/ReAct example một dòng, chứa toàn bộ các bước.
+- `trajectories.jsonl`: mỗi Act/ReAct/hybrid example một dòng, chứa các bước.
 - `metrics.json`: đủ 12 official answer/supporting-fact/joint HotpotQA metrics,
   evidence coverage, runtime, steps, tool calls và lý do dừng.
 - `run.log`: bản lưu của progress và trajectory đã in live trên stdout.
@@ -32,6 +32,10 @@ prediction rỗng và evidence coverage thể hiện rõ giới hạn đó.
 
 JSONL được dùng vì có thể append từng record. Nếu run bị ngắt giữa chừng, các
 example đã hoàn thành vẫn còn trên disk thay vì mất toàn bộ kết quả.
+
+Với `react-cot-sc` và `cot-sc-react`, prediction còn lưu vote count/confidence,
+nhánh được chọn và trạng thái fallback. Mỗi bước hybrid trajectory có field
+`phase` bằng `react` hoặc `cot_sc`.
 
 ## Lưu ý
 

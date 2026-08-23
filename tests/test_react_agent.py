@@ -144,3 +144,25 @@ def test_react_agent_forces_finish_after_action_loop() -> None:
     assert result.termination_reason == "completed_after_action_loop"
     assert "Repeated Search ignored" in (result.trajectory[1].observation or "")
     assert "final allowed step" in llm.prompts[3]
+
+
+def test_react_agent_can_disable_best_effort_for_paper_hybrid_fallback() -> None:
+    llm = ScriptedLLM(
+        [
+            "Thought: Search.\nAction: Search[Albert Einstein]",
+            "Thought: Search again.\nAction: Search[Albert Einstein]",
+        ]
+    )
+    agent = ReActAgent(
+        llm,
+        GenerationConfig(max_new_tokens=32),
+        WikipediaEnvironment(FakeWikipediaClient(), max_steps=2),
+        max_steps=2,
+        best_effort_finalization=False,
+    )
+
+    result = agent.predict(BenchmarkExample("1", "When?", "1879"))
+
+    assert result.prediction == ""
+    assert result.termination_reason == "max_steps_exceeded"
+    assert "final allowed step" not in llm.prompts[1]

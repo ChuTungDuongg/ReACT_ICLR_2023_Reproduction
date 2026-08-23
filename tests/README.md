@@ -2,7 +2,7 @@
 
 > 🌐 **Language:** English | [Tiếng Việt](README.vi.md)
 
-The 53-test suite is deterministic and does not download a model or call live
+The 67-test suite is deterministic and does not download a model or call live
 Wikipedia. Scripted LLMs, injected datasets, and a fake Wikipedia client cover
 the same control flow used by real runs.
 
@@ -22,6 +22,7 @@ python -m pytest -q
 | `test_metrics.py` | Official answer, supporting-fact, and joint HotpotQA metrics. |
 | `test_parsing.py` | Standard/CoT answer and reasoning parsing. |
 | `test_standard_cot_agents.py` | Closed-book agent prompts/results. |
+| `test_hybrid_agents.py` | CoT-SC normalized voting, paper threshold, and both fallback orders. |
 | `test_action_parsing.py` | Search/Lookup/Finish and ReAct Thought/Action parsing, including format drift. |
 | `test_wikipedia.py` | Search, current article, repeated Lookup, missing pages, loops, and max steps. |
 | `test_act_agent.py` | Act-only loop and parse recovery. |

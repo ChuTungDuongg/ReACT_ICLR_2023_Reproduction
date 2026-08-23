@@ -19,7 +19,14 @@ from react_reproduction.logging_utils import configure_logging
 
 
 TASKS = ("hotpotqa", "fever")
-METHODS = ("standard", "cot", "act", "react")
+METHODS = (
+    "standard",
+    "cot",
+    "act",
+    "react",
+    "react-cot-sc",
+    "cot-sc-react",
+)
 DEFAULT_MODEL = "Qwen/Qwen2.5-7B-Instruct"
 
 
@@ -61,6 +68,18 @@ def build_parser(project_root: Path) -> argparse.ArgumentParser:
     benchmark.add_argument("--top-p", type=float)
     benchmark.add_argument("--max-new-tokens", type=_positive_int)
     benchmark.add_argument("--max-agent-steps", type=_positive_int)
+    benchmark.add_argument(
+        "--cot-sc-samples",
+        type=_positive_int,
+        default=21,
+        help="CoT samples used by hybrid self-consistency methods (default: 21).",
+    )
+    benchmark.add_argument(
+        "--cot-sc-temperature",
+        type=_positive_float,
+        default=0.7,
+        help="Sampling temperature for CoT-SC generations (default: 0.7).",
+    )
     benchmark.add_argument("--show-trajectories", action="store_true")
     benchmark.add_argument("--quiet", action="store_true")
     benchmark.add_argument(
@@ -143,6 +162,13 @@ def _positive_int(value: str) -> int:
     return parsed
 
 
+def _positive_float(value: str) -> float:
+    parsed = float(value)
+    if parsed <= 0.0:
+        raise argparse.ArgumentTypeError("value must be greater than zero")
+    return parsed
+
+
 def _run_benchmark(
     args: argparse.Namespace,
     config: ProjectConfig,
@@ -150,10 +176,8 @@ def _run_benchmark(
 ) -> int:
     if args.task != "hotpotqa":
         raise ValueError("Only HotpotQA is implemented through Sprint 4; FEVER is Sprint 6.")
-    if args.method not in {"standard", "cot", "act", "react"}:
-        raise ValueError(
-            f"Method {args.method!r} is not implemented through Sprint 4."
-        )
+    if args.method not in set(METHODS):
+        raise ValueError(f"Method {args.method!r} is not implemented.")
 
     num_samples = args.num_samples or config.benchmark.num_samples
     seed = args.seed if args.seed is not None else config.benchmark.seed
@@ -179,6 +203,15 @@ def _run_benchmark(
         seed=seed,
         generation=asdict(generation),
         max_agent_steps=max_agent_steps,
+        method_settings=(
+            {
+                "cot_sc_samples": args.cot_sc_samples,
+                "cot_sc_temperature": args.cot_sc_temperature,
+                "cot_sc_fallback_threshold": args.cot_sc_samples / 2,
+            }
+            if args.method in {"react-cot-sc", "cot-sc-react"}
+            else {}
+        ),
         device=args.device,
     )
     artifacts = create_run_artifacts(
@@ -241,7 +274,7 @@ def _run_benchmark(
                 environment,
                 max_steps=max_agent_steps,
             )
-        else:
+        elif args.method == "react":
             from react_reproduction.agents.react import ReActAgent
 
             agent = ReActAgent(
@@ -249,6 +282,36 @@ def _run_benchmark(
                 generation,
                 environment,
                 max_steps=max_agent_steps,
+            )
+        else:
+            from react_reproduction.agents.cot_sc import CoTSCAgent
+            from react_reproduction.agents.hybrid import (
+                CoTSCThenReActAgent,
+                ReActThenCoTSCAgent,
+            )
+            from react_reproduction.agents.react import ReActAgent
+
+            cot_sc_generation = type(config.generation)(
+                temperature=args.cot_sc_temperature,
+                top_p=generation.top_p,
+                max_new_tokens=generation.max_new_tokens,
+            )
+            cot_sc_agent = CoTSCAgent(
+                llm,
+                cot_sc_generation,
+                num_samples=args.cot_sc_samples,
+            )
+            react_agent = ReActAgent(
+                llm,
+                generation,
+                environment,
+                max_steps=max_agent_steps,
+                best_effort_finalization=False,
+            )
+            agent = (
+                ReActThenCoTSCAgent(react_agent, cot_sc_agent)
+                if args.method == "react-cot-sc"
+                else CoTSCThenReActAgent(cot_sc_agent, react_agent)
             )
 
     result = run_hotpotqa_benchmark(
