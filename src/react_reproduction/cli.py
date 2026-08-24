@@ -5,17 +5,33 @@ from __future__ import annotations
 import argparse
 import logging
 import os
-from dataclasses import asdict
+from dataclasses import asdict, dataclass, replace
+from functools import partial
 from pathlib import Path
 from typing import Sequence
 
 from react_reproduction import __version__
 from react_reproduction.config import ProjectConfig, load_project_config
+from react_reproduction.agents.parsing import (
+    parse_explicit_final_answer,
+    parse_final_answer,
+)
+from react_reproduction.datasets.fever import load_fever
 from react_reproduction.datasets.hotpotqa import load_hotpotqa
+from react_reproduction.evaluation.fever import (
+    normalize_fever_label,
+    parse_fever_label,
+)
+from react_reproduction.evaluation.metrics import normalize_answer
 from react_reproduction.experiments.artifacts import create_run_artifacts, write_config
-from react_reproduction.experiments.runner import BenchmarkRunConfig, run_hotpotqa_benchmark
+from react_reproduction.experiments.runner import (
+    BenchmarkRunConfig,
+    run_fever_benchmark,
+    run_hotpotqa_benchmark,
+)
 from react_reproduction.llm.huggingface import HuggingFaceProvider
 from react_reproduction.logging_utils import configure_logging
+from react_reproduction.prompts.registry import PromptSuite, get_prompt_suite
 
 
 TASKS = ("hotpotqa", "fever")
@@ -29,6 +45,22 @@ METHODS = (
     "cot-sc-react",
 )
 DEFAULT_MODEL = "Qwen/Qwen2.5-7B-Instruct"
+
+
+@dataclass(frozen=True, slots=True)
+class TaskRuntime:
+    dataset_name: str
+    subset: str
+    split: str
+    default_max_steps: int
+    prompt_suite: PromptSuite
+    loader: object
+    runner: object
+    answer_parser: object
+    vote_parser: object
+    answer_normalizer: object
+    guard_repeated_search: bool
+    dataset_revision: str | None = None
 
 
 def build_parser(project_root: Path) -> argparse.ArgumentParser:
@@ -144,6 +176,14 @@ def main(
             config.hotpotqa.subset,
             config.hotpotqa.split,
         )
+        logger.info(
+            "FEVER: %s/%s split=%s revision=%s",
+            config.fever.dataset_name,
+            config.fever.subset,
+            config.fever.split,
+            config.fever.revision,
+        )
+        logger.info("Paper agent step defaults: HotpotQA=7 FEVER=5")
         return 0
 
     if args.command == "benchmark":
@@ -192,8 +232,6 @@ def _run_benchmark(
     config: ProjectConfig,
     project_root: Path,
 ) -> int:
-    if args.task != "hotpotqa":
-        raise ValueError("Only HotpotQA is implemented through Sprint 4; FEVER is Sprint 6.")
     if args.method not in set(METHODS):
         raise ValueError(f"Method {args.method!r} is not implemented.")
     react_methods = {"react", "react-cot-sc", "cot-sc-react"}
@@ -205,7 +243,8 @@ def _run_benchmark(
         )
     num_samples = args.num_samples or config.benchmark.num_samples
     seed = args.seed if args.seed is not None else config.benchmark.seed
-    max_agent_steps = args.max_agent_steps or config.benchmark.max_agent_steps
+    task_runtime = _resolve_task_runtime(config, args.task)
+    max_agent_steps = args.max_agent_steps or task_runtime.default_max_steps
     generation = type(config.generation)(
         temperature=(
             args.temperature
@@ -220,6 +259,7 @@ def _run_benchmark(
         method_settings.update(
             cot_sc_samples=args.cot_sc_samples,
             cot_sc_temperature=args.cot_sc_temperature,
+            cot_sc_threshold=args.cot_sc_samples / 2,
         )
     if args.method in hybrid_methods:
         method_settings["cot_sc_fallback_threshold"] = args.cot_sc_samples / 2
@@ -231,8 +271,8 @@ def _run_benchmark(
     run_config = BenchmarkRunConfig(
         model=args.model,
         dataset=(
-            f"{config.hotpotqa.dataset_name}:"
-            f"{config.hotpotqa.subset}:{config.hotpotqa.split}"
+            f"{task_runtime.dataset_name}:"
+            f"{task_runtime.subset}:{task_runtime.split}"
         ),
         task=args.task,
         method=args.method,
@@ -243,6 +283,15 @@ def _run_benchmark(
         batch_size=args.batch_size,
         method_settings=method_settings,
         device=args.device,
+        dataset_split=task_runtime.split,
+        dataset_subset=task_runtime.subset,
+        dataset_revision=task_runtime.dataset_revision,
+        prompt_version=task_runtime.prompt_suite.version,
+        sampling_metadata={
+            "algorithm": "python_random_sample_without_replacement",
+            "seed": seed,
+            "num_samples": num_samples,
+        },
     )
     artifacts = create_run_artifacts(
         config.output_dir,
@@ -262,13 +311,18 @@ def _run_benchmark(
     logger.info("Inference batch size: %d", args.batch_size)
     cache_dir = project_root / "cache" / "huggingface"
     _configure_huggingface_cache(cache_dir)
-    logger.info("Loading %d HotpotQA samples with seed=%d", num_samples, seed)
-    examples = load_hotpotqa(
+    logger.info(
+        "Loading %d %s samples with seed=%d",
+        num_samples,
+        args.task,
+        seed,
+    )
+    examples = task_runtime.loader(
         num_samples,
         seed,
-        dataset_name=config.hotpotqa.dataset_name,
-        subset=config.hotpotqa.subset,
-        split=config.hotpotqa.split,
+        dataset_name=task_runtime.dataset_name,
+        subset=task_runtime.subset,
+        split=task_runtime.split,
         cache_dir=cache_dir / "datasets",
     )
     llm = HuggingFaceProvider(
@@ -278,14 +332,38 @@ def _run_benchmark(
         seed=seed,
         trust_remote_code=args.trust_remote_code,
     )
+    run_config = replace(run_config, model_revision=llm.model_revision)
+    write_config(
+        artifacts,
+        {
+            **run_config.to_dict(),
+            "sample_ids": [example.example_id for example in examples],
+        },
+    )
     if args.method == "standard":
         from react_reproduction.agents.standard import StandardAgent
 
-        agent = StandardAgent(llm, generation)
+        agent = StandardAgent(
+            llm,
+            generation,
+            prompt_builder=task_runtime.prompt_suite.standard,
+            answer_parser=task_runtime.answer_parser,
+            invalid_termination_reason=(
+                "invalid_label" if args.task == "fever" else "parsing_error"
+            ),
+        )
     elif args.method == "cot":
         from react_reproduction.agents.cot import CoTAgent
 
-        agent = CoTAgent(llm, generation)
+        agent = CoTAgent(
+            llm,
+            generation,
+            prompt_builder=task_runtime.prompt_suite.cot,
+            answer_parser=task_runtime.answer_parser,
+            invalid_termination_reason=(
+                "invalid_label" if args.task == "fever" else "parsing_error"
+            ),
+        )
     elif args.method == "cot-sc":
         from react_reproduction.agents.cot_sc import CoTSCAgent
 
@@ -298,6 +376,9 @@ def _run_benchmark(
             llm,
             cot_sc_generation,
             num_samples=args.cot_sc_samples,
+            prompt_builder=task_runtime.prompt_suite.cot,
+            answer_parser=task_runtime.vote_parser,
+            answer_normalizer=task_runtime.answer_normalizer,
         )
     else:
         from react_reproduction.tools.wikipedia import (
@@ -309,6 +390,7 @@ def _run_benchmark(
             return WikipediaEnvironment(
                 WikipediaClient(),
                 max_steps=max_agent_steps,
+                guard_repeated_search=task_runtime.guard_repeated_search,
             )
 
         environment = create_environment()
@@ -321,6 +403,8 @@ def _run_benchmark(
                 environment,
                 max_steps=max_agent_steps,
                 environment_factory=create_environment,
+                prompt_builder=task_runtime.prompt_suite.act,
+                answer_normalizer=task_runtime.answer_normalizer,
             )
         elif args.method == "react":
             from react_reproduction.agents.react import ReActAgent
@@ -332,6 +416,8 @@ def _run_benchmark(
                 max_steps=max_agent_steps,
                 best_effort_finalization=args.react_best_effort_finalization,
                 environment_factory=create_environment,
+                prompt_builder=task_runtime.prompt_suite.react,
+                answer_normalizer=task_runtime.answer_normalizer,
             )
         else:
             from react_reproduction.agents.cot_sc import CoTSCAgent
@@ -350,6 +436,9 @@ def _run_benchmark(
                 llm,
                 cot_sc_generation,
                 num_samples=args.cot_sc_samples,
+                prompt_builder=task_runtime.prompt_suite.cot,
+                answer_parser=task_runtime.vote_parser,
+                answer_normalizer=task_runtime.answer_normalizer,
             )
             react_agent = ReActAgent(
                 llm,
@@ -358,6 +447,8 @@ def _run_benchmark(
                 max_steps=max_agent_steps,
                 best_effort_finalization=args.react_best_effort_finalization,
                 environment_factory=create_environment,
+                prompt_builder=task_runtime.prompt_suite.react,
+                answer_normalizer=task_runtime.answer_normalizer,
             )
             agent = (
                 ReActThenCoTSCAgent(react_agent, cot_sc_agent)
@@ -365,7 +456,7 @@ def _run_benchmark(
                 else CoTSCThenReActAgent(cot_sc_agent, react_agent)
             )
 
-    result = run_hotpotqa_benchmark(
+    result = task_runtime.runner(
         examples,
         agent,
         run_config,
@@ -374,9 +465,50 @@ def _run_benchmark(
         artifacts=artifacts,
         show_trajectories=args.show_trajectories,
     )
-    logger.info("Benchmark complete: exact_match=%.4f", result.metrics.exact_match)
+    primary_metric = (
+        result.metrics.accuracy
+        if args.task == "fever"
+        else result.metrics.exact_match
+    )
+    logger.info("Benchmark complete: primary_metric=%.4f", primary_metric)
     logger.info("Metrics: %s", result.artifacts.metrics_path)
     return 0
+
+
+def _resolve_task_runtime(config: ProjectConfig, task: str) -> TaskRuntime:
+    if task == "hotpotqa":
+        return TaskRuntime(
+            dataset_name=config.hotpotqa.dataset_name,
+            subset=config.hotpotqa.subset,
+            split=config.hotpotqa.split,
+            default_max_steps=config.max_agent_steps_for(task),
+            prompt_suite=get_prompt_suite(task),
+            loader=load_hotpotqa,
+            runner=run_hotpotqa_benchmark,
+            answer_parser=parse_final_answer,
+            vote_parser=parse_explicit_final_answer,
+            answer_normalizer=normalize_answer,
+            guard_repeated_search=True,
+        )
+    if task == "fever":
+        return TaskRuntime(
+            dataset_name=config.fever.dataset_name,
+            subset=config.fever.subset,
+            split=config.fever.split,
+            default_max_steps=config.max_agent_steps_for(task),
+            prompt_suite=get_prompt_suite(task),
+            loader=partial(
+                load_fever,
+                source_revision=config.fever.revision,
+            ),
+            runner=run_fever_benchmark,
+            answer_parser=parse_fever_label,
+            vote_parser=parse_fever_label,
+            answer_normalizer=normalize_fever_label,
+            guard_repeated_search=False,
+            dataset_revision=config.fever.revision,
+        )
+    raise ValueError(f"Unsupported task: {task!r}.")
 
 
 def _configure_huggingface_cache(cache_dir: Path) -> None:

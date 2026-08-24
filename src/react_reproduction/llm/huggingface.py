@@ -152,6 +152,12 @@ class HuggingFaceProvider(LLMProvider):
             )
         )
 
+    @property
+    def model_revision(self) -> str | None:
+        """Resolved Hub commit when Transformers exposes it."""
+        revision = getattr(self.model.config, "_commit_hash", None)
+        return str(revision) if revision else None
+
     def _prepare_inputs(self, prompt: str) -> dict[str, Any]:
         messages = [{"role": "user", "content": prompt}]
         if getattr(self.tokenizer, "chat_template", None):

@@ -45,7 +45,8 @@ def test_missing_article_returns_clear_observation() -> None:
     environment = WikipediaEnvironment(FakeWikipediaClient(), max_steps=3)
     result = environment.execute(ToolAction(ActionType.SEARCH, "missing"))
     assert result.terminated is False
-    assert "No Wikipedia article found" in result.observation
+    assert "Could not find [missing]" in result.observation
+    assert "Similar:" in result.observation
 
 
 def test_repeated_action_terminates_as_loop() -> None:
@@ -67,6 +68,18 @@ def test_repeated_action_terminates_as_loop() -> None:
     assert result.termination_reason == "action_loop"
 
 
+def test_paper_mode_allows_repeated_search_until_step_budget() -> None:
+    environment = WikipediaEnvironment(
+        FakeWikipediaClient(),
+        max_steps=5,
+        guard_repeated_search=False,
+    )
+    action = ToolAction(ActionType.SEARCH, "Albert Einstein")
+    results = [environment.execute(action) for _ in range(5)]
+    assert all(result.termination_reason != "action_loop" for result in results)
+    assert results[-1].termination_reason == "max_steps_exceeded"
+
+
 def test_max_steps_terminates_environment() -> None:
     environment = WikipediaEnvironment(FakeWikipediaClient(), max_steps=1)
     result = environment.execute(ToolAction(ActionType.SEARCH, "Albert Einstein"))
@@ -80,3 +93,21 @@ def test_finish_returns_answer_without_external_tool_call() -> None:
     assert result.answer == "Germany"
     assert result.tool_called is False
     assert result.termination_reason == "completed"
+
+
+def test_search_observation_uses_the_first_five_sentences() -> None:
+    class SixSentenceClient:
+        def search(self, query: str) -> WikipediaSearchResult:
+            return WikipediaSearchResult(
+                query,
+                WikipediaArticle(
+                    title="Exact Page",
+                    text="One. Two. Three. Four. Five. Six.",
+                ),
+                ("Exact Page",),
+            )
+
+    environment = WikipediaEnvironment(SixSentenceClient(), max_steps=5)
+    result = environment.execute(ToolAction(ActionType.SEARCH, "Exact Page"))
+    assert "One. Two. Three. Four. Five." in result.observation
+    assert "Six." not in result.observation

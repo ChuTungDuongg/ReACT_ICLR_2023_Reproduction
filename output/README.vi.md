@@ -1,34 +1,22 @@
-# Tài liệu của project
+# Tài liệu project
 
-> 🌐 **Ngôn ngữ:** [English](README.md) | Tiếng Việt
+> Ngôn ngữ: [English](README.md) | Tiếng Việt
 
-`output/` chứa tài liệu ổn định dành cho người đọc và có thể commit/chia sẻ.
-Thư mục này khác `outputs/`, nơi chứa benchmark runtime bị Git ignore.
+Thư mục này lưu tài liệu ổn định được track:
 
 ```text
 output/
-└── pdf/
-    └── react-reproduction-roadmap.pdf
+  react-reproduction-roadmap.md
+  pdf/react-reproduction-roadmap.pdf
 ```
 
-## Roadmap PDF ghi lại những gì?
+Markdown là source of truth của roadmap. Tạo lại PDF bằng:
 
-- mục tiêu và trạng thái của từng sprint;
-- architecture và trách nhiệm của từng folder/file;
-- requirements Python, Colab và hardware;
-- acceptance criteria và checkpoint của Sprint 0-4;
-- cấu trúc artifact và lệnh kiểm tra;
-- smoke benchmark thật cùng kết quả thực tế;
-- phần roadmap còn lại được đánh dấu rõ là chưa triển khai.
+```bash
+python scripts/generate_roadmap_pdf.py
+```
 
-Roadmap hiện phản ánh trạng thái **hoàn tất đến Sprint 4**. Sprint 5, FEVER,
-ALFWorld, WebShop và interactive app vẫn chưa được thực hiện.
+Dependency `reportlab` của generator đã có trong project requirements.
 
-## Không đặt ở đây
-
-- prediction hoặc trajectory runtime;
-- model weights, cache, dataset;
-- credential hoặc token;
-- file tạm dùng khi render tài liệu.
-
-Các nội dung trên phải nằm ở thư mục phù hợp và tuân theo `.gitignore`.
+Roadmap phản ánh Sprint 6 hoàn tất và các setting FEVER theo paper. Runtime
+predictions phải nằm trong `outputs/` đã bị ignore.

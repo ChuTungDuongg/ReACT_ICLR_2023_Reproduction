@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from react_reproduction.agents.base import AgentResult, BaseAgent, TrajectoryStep
 from react_reproduction.agents.parsing import parse_final_answer, parse_reasoning
@@ -13,9 +13,20 @@ from react_reproduction.prompts.hotpotqa import build_cot_prompt
 
 
 class CoTAgent(BaseAgent):
-    def __init__(self, llm: LLMProvider, generation: GenerationConfig) -> None:
+    def __init__(
+        self,
+        llm: LLMProvider,
+        generation: GenerationConfig,
+        *,
+        prompt_builder: Callable[[str], str] = build_cot_prompt,
+        answer_parser: Callable[[str], str] = parse_final_answer,
+        invalid_termination_reason: str = "parsing_error",
+    ) -> None:
         self._llm = llm
         self._generation = generation
+        self._prompt_builder = prompt_builder
+        self._answer_parser = answer_parser
+        self._invalid_termination_reason = invalid_termination_reason
 
     def predict(self, example: BenchmarkExample) -> AgentResult:
         return self.predict_batch((example,))[0]
@@ -27,7 +38,7 @@ class CoTAgent(BaseAgent):
         if not examples:
             return ()
         model_outputs = self._llm.generate_batch(
-            [build_cot_prompt(example.input_text) for example in examples],
+            [self._prompt_builder(example.input_text) for example in examples],
             temperature=self._generation.temperature,
             top_p=self._generation.top_p,
             max_new_tokens=self._generation.max_new_tokens,
@@ -36,9 +47,8 @@ class CoTAgent(BaseAgent):
             raise RuntimeError("CoT batch output count does not match inputs.")
         return tuple(self._build_result(output) for output in model_outputs)
 
-    @staticmethod
-    def _build_result(model_output: str) -> AgentResult:
-        prediction = parse_final_answer(model_output)
+    def _build_result(self, model_output: str) -> AgentResult:
+        prediction = self._answer_parser(model_output)
         trajectory = (
             TrajectoryStep(
                 step_index=1,
@@ -50,6 +60,13 @@ class CoTAgent(BaseAgent):
             prediction=prediction,
             steps=1,
             tool_calls=0,
-            termination_reason="completed" if prediction else "parsing_error",
+            termination_reason=(
+                "completed" if prediction else self._invalid_termination_reason
+            ),
             trajectory=trajectory,
+            metadata=(
+                {}
+                if prediction
+                else {"parse_error": "No valid task answer could be parsed."}
+            ),
         )

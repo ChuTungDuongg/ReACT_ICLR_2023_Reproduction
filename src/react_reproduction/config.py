@@ -21,6 +21,7 @@ class BenchmarkDefaults:
     num_samples: int = 10
     seed: int = 42
     max_agent_steps: int = 7
+    fever_max_agent_steps: int = 5
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,6 +51,16 @@ class HotpotQAConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class FeverConfig:
+    """Hugging Face source used by the FEVER claim verification benchmark."""
+
+    dataset_name: str = "ysymyth/ReAct"
+    subset: str = "paper_dev"
+    split: str = "dev"
+    revision: str = "6bdb3a1fd38b8188fc7ba4102969fe483df8fdc9"
+
+
+@dataclass(frozen=True, slots=True)
 class ProjectConfig:
     """Validated Sprint 0 configuration."""
 
@@ -57,8 +68,17 @@ class ProjectConfig:
     output_dir: Path
     log_level: str
     hotpotqa: HotpotQAConfig
+    fever: FeverConfig
     benchmark: BenchmarkDefaults
     generation: GenerationConfig
+
+    def max_agent_steps_for(self, task: str) -> int:
+        """Return the paper step budget for a supported task."""
+        if task == "hotpotqa":
+            return self.benchmark.max_agent_steps
+        if task == "fever":
+            return self.benchmark.fever_max_agent_steps
+        raise ValueError(f"Unsupported task: {task!r}.")
 
 
 def load_project_config(config_path: Path, *, project_root: Path) -> ProjectConfig:
@@ -80,6 +100,7 @@ def load_project_config(config_path: Path, *, project_root: Path) -> ProjectConf
     generation_data = _mapping(raw_config.get("generation"), "generation")
     datasets_data = _mapping(raw_config.get("datasets"), "datasets")
     hotpotqa_data = _mapping(datasets_data.get("hotpotqa"), "datasets.hotpotqa")
+    fever_data = _mapping(datasets_data.get("fever"), "datasets.fever")
 
     project_name = str(raw_config.get("project_name", "react-paper-reproduction"))
     output_value = os.getenv(
@@ -106,11 +127,36 @@ def load_project_config(config_path: Path, *, project_root: Path) -> ProjectConf
             "datasets.hotpotqa.split",
         ),
     )
+    fever = FeverConfig(
+        dataset_name=_non_empty_string(
+            fever_data.get("dataset_name", "ysymyth/ReAct"),
+            "datasets.fever.dataset_name",
+        ),
+        subset=_non_empty_string(
+            fever_data.get("subset", "paper_dev"),
+            "datasets.fever.subset",
+        ),
+        split=_non_empty_string(
+            fever_data.get("split", "dev"),
+            "datasets.fever.split",
+        ),
+        revision=_non_empty_string(
+            fever_data.get(
+                "revision",
+                "6bdb3a1fd38b8188fc7ba4102969fe483df8fdc9",
+            ),
+            "datasets.fever.revision",
+        ),
+    )
     benchmark = BenchmarkDefaults(
         num_samples=_positive_int(benchmark_data.get("num_samples", 10), "num_samples"),
         seed=int(benchmark_data.get("seed", 42)),
         max_agent_steps=_positive_int(
             benchmark_data.get("max_agent_steps", 7), "max_agent_steps"
+        ),
+        fever_max_agent_steps=_positive_int(
+            benchmark_data.get("fever_max_agent_steps", 5),
+            "fever_max_agent_steps",
         ),
     )
     generation = GenerationConfig(
@@ -125,6 +171,7 @@ def load_project_config(config_path: Path, *, project_root: Path) -> ProjectConf
         output_dir=_resolve_path(Path(output_value), root),
         log_level=log_level,
         hotpotqa=hotpotqa,
+        fever=fever,
         benchmark=benchmark,
         generation=generation,
     )

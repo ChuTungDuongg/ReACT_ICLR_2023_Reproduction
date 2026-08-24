@@ -237,5 +237,5 @@ def test_react_batches_active_questions_with_independent_environments() -> None:
     assert [result.tool_calls for result in results] == [1, 1]
     assert [len(batch) for batch in llm.prompt_batches] == [2, 2]
     assert "Opened 'Albert Einstein'" in llm.prompt_batches[1][0]
-    assert "No Wikipedia article found" in llm.prompt_batches[1][1]
+    assert "Could not find [missing]" in llm.prompt_batches[1][1]
     assert len(created_environments) == 2

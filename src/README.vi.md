@@ -1,82 +1,25 @@
 # Source code
 
-> 🌐 **Ngôn ngữ:** [English](README.md) | Tiếng Việt
+> Ngôn ngữ: [English](README.md) | Tiếng Việt
 
-Thư mục `src/` chứa toàn bộ logic chính của chương trình. Project dùng kiểu
-layout chuẩn `src`: package thật nằm tại `src/react_reproduction/`. `main.py` ở
-root tự thêm `src/` vào Python path nên sau khi clone và cài requirements có thể
-chạy ngay, không cần `pip install -e .`.
+Package `react_reproduction` dùng một pipeline chung cho HotpotQA và FEVER:
 
-## Bản đồ package
-
-| Đường dẫn | Chức năng | Hoạt động ra sao |
-|---|---|---|
-| `react_reproduction/cli.py` | Command-line interface | Đọc tham số, config, tạo model/agent/environment rồi gọi runner |
-| `react_reproduction/config.py` | Cấu hình typed | Đọc YAML, biến môi trường, kiểm tra giá trị và resolve đường dẫn |
-| `react_reproduction/logging_utils.py` | Logging | In UTF-8 live ra stdout và đồng thời ghi `run.log` |
-| `react_reproduction/datasets/` | Dữ liệu benchmark | Chuẩn hóa raw HotpotQA thành `BenchmarkExample`, lấy mẫu theo seed |
-| `react_reproduction/llm/` | Model provider | Định nghĩa interface chung và implementation Hugging Face |
-| `react_reproduction/prompts/` | Prompt builder | Dựng Standard, CoT, Act-only và ReAct từ 6 ví dụ HotpotQA viết thủ công trong Appendix C.1 của paper |
-| `react_reproduction/agents/` | Logic phương pháp | Chạy model, parse output, quản lý vòng lặp và tạo trajectory |
-| `react_reproduction/tools/` | Wikipedia tool | Search/Lookup/Finish, state bài viết, timeout/retry, loop/max-step |
-| `react_reproduction/evaluation/` | Chấm điểm | Tính official answer/supporting-fact/joint metrics và schema JSON |
-| `react_reproduction/experiments/` | Điều phối run | Chạy từng example, đo latency, flush JSONL và ghi metrics |
-
-## Luồng gọi code
-
-```text
-main.py
-  → cli.main()
-  → load_project_config()
-  → load_hotpotqa()
-  → HuggingFaceProvider
-  → base agent / CoT-SC / hybrid đã chọn
-  → run_hotpotqa_benchmark()
-  → outputs/<task>/<method>/<timestamp>/
-```
-
-## `agents/` có gì?
-
-| File | Vai trò |
+| Package | Trách nhiệm |
 |---|---|
-| `base.py` | `BaseAgent`, `AgentResult`, `TrajectoryStep` dùng chung |
-| `parsing.py` | Parse final answer, reasoning và Search/Lookup/Finish |
-| `standard.py` | Gọi model một lần và lấy đáp án trực tiếp |
-| `cot.py` | Gọi model một lần, lưu reasoning rồi lấy final answer |
-| `act.py` | Lặp Action → Observation, không lưu Thought |
-| `react.py` | Lặp Thought → Action → Observation đến khi Finish/dừng |
-| `cot_sc.py` | Sample nhiều CoT, normalize đáp án và majority vote |
-| `hybrid.py` | ReAct → CoT-SC và CoT-SC → ReAct theo fallback của paper |
+| `datasets/` | `BenchmarkExample`, loader deterministic HotpotQA và FEVER claim-only |
+| `prompts/` | Prompt Appendix C.1 và các ablation FEVER Appendix C.2 có version |
+| `agents/` | Control flow dùng chung cho cả bảy methods |
+| `llm/` | Hugging Face lazy loading và padded batching |
+| `tools/` | Wikipedia Search/Lookup/Finish theo semantics paper |
+| `evaluation/` | HotpotQA metrics và FEVER Accuracy |
+| `experiments/` | Batching, logging, trajectory và artifacts dùng chung |
+| `cli.py` | Task wiring và bảy method public |
 
-Hybrid trajectory có phase `react`/`cot_sc`; prediction metadata lưu vote
-confidence, nhánh được chọn và trạng thái fallback.
-Batch API có sequential fallback cho provider test, còn Hugging Face provider
-thực hiện padded GPU generation thật. Standard và CoT batch các prompt một lượt;
-CoT-SC batch ở từng vòng sampling; Act và ReAct batch các example còn active ở
-từng step nhưng vẫn giữ một Wikipedia environment riêng cho mỗi batch slot.
+Agent nhận prompt builder và answer normalizer từ task adapter; FEVER không
+duplicate agent loop. Mỗi sample interactive có Wikipedia environment riêng và
+hybrid chỉ batch những sample thật sự cần fallback.
 
-## `tools/wikipedia.py` quản lý state như thế nào?
-
-- `Search[entity]` tìm và mở một bài Wikipedia.
-- Bài đang mở được lưu trong `current_article`.
-- `Lookup[text]` tìm câu khớp tiếp theo trong bài đang mở.
-- Offset của từng Lookup được lưu để lần gọi sau trả về kết quả tiếp theo.
-- `Finish[answer]` kết thúc example.
-- `Search` trùng lần hai không gọi Wikipedia lại mà trả hướng dẫn chuyển sang
-  `Lookup`, một entity khác hoặc `Finish`; lần ba mới ghi nhận `action_loop`.
-- `Lookup` giống nhau vẫn được phép lặp để lấy câu khớp tiếp theo.
-- ReAct standalone và ReAct trong hybrid mặc định cùng dùng policy paper-style:
-  không ép đáp án sau loop hay ở bước cuối. CLI chỉ bật best-effort khi người
-  dùng yêu cầu rõ; Act-only vẫn bật policy này mặc định.
-- Hết budget bị chặn bằng `max_steps_exceeded`.
-
-## Quy tắc khi sửa source
-
-- Không đặt network/model download ở import time.
-- Giữ agent loop trực tiếp, dễ đọc và không phụ thuộc agent framework.
-- Component mới phải có test bằng fake/scripted dependency trước khi chạy thật.
-- Luôn giữ seed và config trong artifact để có thể tái hiện run.
-- Không triển khai feature của sprint chưa được cho phép.
-
-Implementation hiện hoàn tất Sprint 4 cùng hai hybrid fallback trong paper.
-Model mặc định của CLI là `Qwen/Qwen2.5-7B-Instruct`.
+FEVER mặc định dùng prompt `fever-appendix-c2-v1`, ReAct 5 bước, CoT-SC 21
+sample ở temperature 0.7, Accuracy và không terminate sớm do Search lặp.
+HotpotQA giữ budget 7 bước, legacy loop guard và evaluator
+answer/supporting-fact/joint hiện có.

@@ -1,33 +1,22 @@
 # Tests
 
-> 🌐 **Language:** English | [Tiếng Việt](README.vi.md)
+> Language: English | [Tieng Viet](README.vi.md)
 
-The 91-test suite is deterministic and does not download a model or call live
-Wikipedia. Scripted LLMs, injected datasets, and a fake Wikipedia client cover
-the same control flow used by real runs.
-
-Run from the repository root:
+Run the offline suite from the repository root:
 
 ```bash
 python -m pytest -q
 ```
 
-## Coverage by file
+The suite uses scripted LLM providers, injected datasets, and fake Wikipedia
+clients; it does not download Qwen or call live services. Coverage includes:
 
-| File | What it verifies |
-|---|---|
-| `test_smoke.py` | CLI help, configuration, `doctor`, all seven methods, and batch sizes 2/3. |
-| `test_hotpotqa.py` | Seeded sampling, metadata, loader arguments, validation. |
-| `test_hotpotqa_prompts.py` | Six Appendix C.1 examples per method, question-only target input, and numbered interactive history. |
-| `test_metrics.py` | Official answer, supporting-fact, and joint HotpotQA metrics. |
-| `test_parsing.py` | Standard/CoT answer and reasoning parsing. |
-| `test_standard_cot_agents.py` | Closed-book prompts/results and true Standard/CoT batch dispatch. |
-| `test_hybrid_agents.py` | CoT-SC normalized voting, batched sampling, paper threshold, and both fallback orders. |
-| `test_action_parsing.py` | Search/Lookup/Finish and ReAct Thought/Action parsing, including format drift. |
-| `test_wikipedia.py` | Search, current article, repeated Lookup, missing pages, loops, and max steps. |
-| `test_act_agent.py` | Act-only loop, parse recovery, and independent batched Wikipedia state. |
-| `test_react_agent.py` | Thought/Action/Observation loop, independent batched environments, history, recovery, and termination. |
-| `test_experiment_serialization.py` | Config, batch dispatch, full metrics, terminal logging, flushed predictions, and trajectories. |
-
-Temporary test outputs are created only under `outputs/`, their resolved parent
-is checked, and the exact temporary directory is removed afterward.
+- HotpotQA regression for all existing agents, metrics, prompts, and artifacts;
+- FEVER label normalization and invalid outputs;
+- deterministic claim-only loading with no gold-evidence leakage;
+- the exact three Appendix C.2 examples and controlled prompt ablations;
+- Search/Lookup/Finish and five-sentence/suggestion semantics;
+- all seven FEVER methods, 21-sample CoT-SC, temperature 0.7, and vote metadata;
+- `11/21` no-fallback and `10/21` fallback boundaries;
+- ReAct failure fallback, batch state isolation, Accuracy, and serialization;
+- an explicit paper-fidelity audit.

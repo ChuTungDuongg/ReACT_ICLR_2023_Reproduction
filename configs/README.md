@@ -1,17 +1,14 @@
 # Configuration
 
-> 🌐 **Language:** English | [Tiếng Việt](README.vi.md)
+> Language: English | [Tieng Viet](README.vi.md)
 
-`default.yaml` contains version-controlled experiment defaults:
+`default.yaml` defines both dataset sources and shared generation defaults:
 
-- HotpotQA dataset `hotpotqa/hotpot_qa`, `distractor`, `validation`;
-- sample count, seed, and maximum agent steps;
-- generation temperature, top-p, and maximum new tokens;
-- output directory and live log level.
+- HotpotQA: `hotpotqa/hotpot_qa`, `distractor`, `validation`, 7 ReAct steps;
+- FEVER: official `ysymyth/ReAct` `data/paper_dev.jsonl`, pinned revision, 5 ReAct steps;
+- default sample count, seed, generation temperature/top-p/token budget;
+- output directory and log level.
 
-`src/react_reproduction/config.py` validates every value and resolves relative
-paths from the repository root. CLI flags override run-specific values.
-`REACT_OUTPUT_DIR` and `REACT_LOG_LEVEL` can override their YAML equivalents.
-
-Do not store Hugging Face tokens, model weights, downloaded data, or generated
-results here. Use `.env` for local secrets; it is ignored by Git.
+CLI flags override run settings. CoT-SC defaults are CLI-level paper constants:
+21 samples and temperature 0.7. `REACT_OUTPUT_DIR` and `REACT_LOG_LEVEL` are the
+supported environment overrides. Keep credentials in the ignored `.env` file.

@@ -64,6 +64,46 @@ class PredictionRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class FeverPredictionRecord:
+    """One claim-label prediction for the FEVER claim-only protocol."""
+
+    example_id: str
+    task: str
+    method: str
+    claim: str
+    gold_answer: str
+    prediction: str
+    correct: bool
+    invalid: bool
+    agent_metadata: Mapping[str, Any]
+    steps: int
+    tool_calls: int
+    termination_reason: str
+    latency: float
+
+    def __post_init__(self) -> None:
+        if self.steps < 0 or self.tool_calls < 0:
+            raise ValueError("steps and tool_calls cannot be negative.")
+        if self.latency < 0:
+            raise ValueError("latency cannot be negative.")
+
+    def to_dict(self) -> dict[str, Any]:
+        result = asdict(self)
+        for key in (
+            "winning_label",
+            "winning_count",
+            "winning_fraction",
+            "valid_sample_count",
+            "vote_distribution",
+            "paper_threshold_met",
+            "execution_path",
+        ):
+            if key in self.agent_metadata:
+                result[key] = self.agent_metadata[key]
+        return result
+
+
+@dataclass(frozen=True, slots=True)
 class TrajectoryRecord:
     """One complete agent trajectory serialized independently per example."""
 
@@ -129,4 +169,28 @@ class BenchmarkMetrics:
         result = asdict(self)
         result["termination_reasons"] = dict(self.termination_reasons)
         result["official_hotpotqa"] = self.official_hotpotqa_metrics()
+        return result
+
+
+@dataclass(frozen=True, slots=True)
+class FeverMetrics:
+    """Primary FEVER label accuracy plus transparent analysis metrics."""
+
+    accuracy: float
+    total_examples: int
+    correct: int
+    incorrect: int
+    invalid_unparsed: int
+    average_steps: float
+    average_tool_calls: float
+    runtime: float
+    termination_reasons: Mapping[str, int] = field(default_factory=dict)
+    gold_label_distribution: Mapping[str, int] = field(default_factory=dict)
+    predicted_label_distribution: Mapping[str, int] = field(default_factory=dict)
+    per_class_accuracy: Mapping[str, float] = field(default_factory=dict)
+    confusion_matrix: Mapping[str, Mapping[str, int]] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        result = asdict(self)
+        result["primary_metric"] = {"name": "accuracy", "value": self.accuracy}
         return result

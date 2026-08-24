@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from react_reproduction.agents.base import AgentResult, BaseAgent, TrajectoryStep
@@ -46,6 +46,9 @@ class CoTSCAgent(BaseAgent):
         generation: GenerationConfig,
         *,
         num_samples: int = 21,
+        prompt_builder: Callable[[str], str] = build_cot_prompt,
+        answer_parser: Callable[[str], str] = parse_explicit_final_answer,
+        answer_normalizer: Callable[[str], str] = normalize_answer,
     ) -> None:
         if num_samples <= 0:
             raise ValueError("num_samples must be positive.")
@@ -54,6 +57,9 @@ class CoTSCAgent(BaseAgent):
         self._llm = llm
         self._generation = generation
         self.num_samples = num_samples
+        self._prompt_builder = prompt_builder
+        self._answer_parser = answer_parser
+        self._answer_normalizer = answer_normalizer
 
     def predict(self, example: BenchmarkExample) -> AgentResult:
         return self.predict_with_consensus(example).result
@@ -79,10 +85,11 @@ class CoTSCAgent(BaseAgent):
         trajectories: list[list[TrajectoryStep]] = [[] for _ in examples]
         answers: list[list[str]] = [[] for _ in examples]
         normalized_answers: list[list[str]] = [[] for _ in examples]
+        all_normalized_answers: list[list[str]] = [[] for _ in examples]
 
         for sample_index in range(1, self.num_samples + 1):
             model_outputs = self._llm.generate_batch(
-                [build_cot_prompt(example.input_text) for example in examples],
+                [self._prompt_builder(example.input_text) for example in examples],
                 temperature=self._generation.temperature,
                 top_p=self._generation.top_p,
                 max_new_tokens=self._generation.max_new_tokens,
@@ -93,8 +100,9 @@ class CoTSCAgent(BaseAgent):
                     f"{len(model_outputs)} != {len(examples)}."
                 )
             for example_index, model_output in enumerate(model_outputs):
-                answer = parse_explicit_final_answer(model_output).strip()
-                normalized = normalize_answer(answer)
+                answer = self._answer_parser(model_output).strip()
+                normalized = self._answer_normalizer(answer)
+                all_normalized_answers[example_index].append(normalized)
                 if normalized:
                     answers[example_index].append(answer)
                     normalized_answers[example_index].append(normalized)
@@ -112,12 +120,20 @@ class CoTSCAgent(BaseAgent):
                 example_trajectories,
                 example_answers,
                 example_normalized_answers,
+                example_all_normalized_answers,
             )
             for (
                 example_trajectories,
                 example_answers,
                 example_normalized_answers,
-            ) in zip(trajectories, answers, normalized_answers, strict=True)
+                example_all_normalized_answers,
+            ) in zip(
+                trajectories,
+                answers,
+                normalized_answers,
+                all_normalized_answers,
+                strict=True,
+            )
         )
 
     def _build_outcome(
@@ -125,9 +141,21 @@ class CoTSCAgent(BaseAgent):
         trajectories: list[TrajectoryStep],
         answers: list[str],
         normalized_answers: list[str],
+        all_normalized_answers: list[str],
     ) -> CoTSCOutcome:
         counts = Counter(normalized_answers)
-        winning_key = counts.most_common(1)[0][0] if counts else ""
+        winning_key = (
+            min(
+                counts,
+                key=lambda label: (
+                    -counts[label],
+                    normalized_answers.index(label),
+                    label,
+                ),
+            )
+            if counts
+            else ""
+        )
         winning_count = counts[winning_key] if winning_key else 0
         prediction = next(
             (
@@ -140,20 +168,38 @@ class CoTSCAgent(BaseAgent):
             "",
         )
         valid_answer_count = len(answers)
+        winning_fraction = winning_count / self.num_samples
+        paper_threshold_met = winning_count >= self.num_samples / 2
+        generated_samples = [step.model_output for step in trajectories]
         metadata = {
             "cot_sc_samples": self.num_samples,
             "cot_sc_valid_answers": valid_answer_count,
             "cot_sc_winning_count": winning_count,
-            "cot_sc_confidence": winning_count / self.num_samples,
+            "cot_sc_confidence": winning_fraction,
             "cot_sc_winning_answer": prediction,
             "cot_sc_vote_counts": dict(counts.most_common()),
+            "cot_sc_generated_samples": generated_samples,
+            "cot_sc_normalized_labels": list(all_normalized_answers),
+            "winning_label": prediction,
+            "winning_count": winning_count,
+            "winning_fraction": winning_fraction,
+            "valid_sample_count": valid_answer_count,
+            "vote_distribution": dict(counts.most_common()),
+            "paper_threshold_met": paper_threshold_met,
+            "tie_break_rule": "first_observed_normalized_label",
         }
         result = AgentResult(
             prediction=prediction,
             steps=len(trajectories),
             tool_calls=0,
             termination_reason=(
-                "cot_sc_consensus" if prediction else "cot_sc_no_answer"
+                (
+                    "cot_sc_majority"
+                    if paper_threshold_met
+                    else "cot_sc_plurality"
+                )
+                if prediction
+                else "cot_sc_no_answer"
             ),
             trajectory=tuple(trajectories),
             metadata=metadata,

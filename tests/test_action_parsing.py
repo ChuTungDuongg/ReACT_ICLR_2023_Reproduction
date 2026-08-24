@@ -75,6 +75,14 @@ def test_parse_react_output_tolerates_action_only() -> None:
     assert action.argument == "1879"
 
 
+def test_parse_react_output_recovers_thought_after_prompt_prefix() -> None:
+    thought, action = parse_react_output(
+        "I should verify the entity.\nAction 1: Search[Entity]"
+    )
+    assert thought == "I should verify the entity."
+    assert action.action_type is ActionType.SEARCH
+
+
 def test_parser_executes_only_first_action_when_model_emits_multiple() -> None:
     action = parse_tool_action(
         "Action: Search[Albert Einstein]\nAction: Lookup[born]"

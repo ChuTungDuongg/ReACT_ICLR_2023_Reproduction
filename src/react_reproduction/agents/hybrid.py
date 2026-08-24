@@ -60,6 +60,7 @@ class ReActThenCoTSCAgent(BaseAgent):
                 supporting_facts=react_result.supporting_facts,
                 metadata={
                     "selected_path": "react",
+                    "execution_path": "react_completed",
                     "fallback_used": False,
                     "react_termination_reason": react_result.termination_reason,
                 },
@@ -77,7 +78,10 @@ class ReActThenCoTSCAgent(BaseAgent):
             cot_outcome,
             selected_path="cot_sc",
             fallback_used=True,
-            extra={"react_termination_reason": react_result.termination_reason},
+            extra={
+                "react_termination_reason": react_result.termination_reason,
+                "execution_path": "fallback_cot_sc" if prediction else "hybrid_failed",
+            },
         )
         return AgentResult(
             prediction=prediction,
@@ -139,6 +143,7 @@ class CoTSCThenReActAgent(BaseAgent):
                     cot_outcome,
                     selected_path="cot_sc",
                     fallback_used=False,
+                    extra={"execution_path": "cot_sc_consensus"},
                 ),
             )
 
@@ -154,7 +159,14 @@ class CoTSCThenReActAgent(BaseAgent):
             cot_outcome,
             selected_path="react",
             fallback_used=True,
-            extra={"react_termination_reason": react_result.termination_reason},
+            extra={
+                "react_termination_reason": react_result.termination_reason,
+                "execution_path": (
+                    "fallback_react_completed"
+                    if prediction
+                    else "hybrid_failed"
+                ),
+            },
         )
         return AgentResult(
             prediction=prediction,

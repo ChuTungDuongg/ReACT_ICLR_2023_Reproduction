@@ -45,6 +45,8 @@ class ReActAgent(BaseAgent):
         max_steps: int,
         best_effort_finalization: bool = False,
         environment_factory: Callable[[], WikipediaEnvironment] | None = None,
+        prompt_builder: Callable[..., str] = build_react_prompt,
+        answer_normalizer: Callable[[str], str] = str.strip,
     ) -> None:
         if max_steps <= 0:
             raise ValueError("max_steps must be positive.")
@@ -54,6 +56,8 @@ class ReActAgent(BaseAgent):
         self._max_steps = max_steps
         self._best_effort_finalization = best_effort_finalization
         self._environment_factory = environment_factory
+        self._prompt_builder = prompt_builder
+        self._answer_normalizer = answer_normalizer
         self._batch_environments = [environment]
 
     def predict(self, example: BenchmarkExample) -> AgentResult:
@@ -101,7 +105,7 @@ class ReActAgent(BaseAgent):
                 for state in active_states
             ]
             prompts = [
-                build_react_prompt(
+                self._prompt_builder(
                     state.example.input_text,
                     state.trajectory,
                     force_finish=force_finish,
@@ -205,12 +209,25 @@ class ReActAgent(BaseAgent):
         if not execution.terminated:
             return
         if execution.answer is not None:
+            prediction = self._answer_normalizer(execution.answer)
             state.result = AgentResult(
-                prediction=execution.answer,
+                prediction=prediction,
                 steps=len(state.trajectory),
                 tool_calls=state.tool_calls,
-                termination_reason=(execution.termination_reason or "terminated"),
+                termination_reason=(
+                    execution.termination_reason or "terminated"
+                    if prediction
+                    else "invalid_label"
+                ),
                 trajectory=tuple(state.trajectory),
+                metadata=(
+                    {}
+                    if prediction
+                    else {
+                        "raw_prediction": execution.answer,
+                        "parse_error": "Finish did not contain a valid task answer.",
+                    }
+                ),
             )
             return
         if self._best_effort_finalization and step_index < self._max_steps:
@@ -226,8 +243,8 @@ class ReActAgent(BaseAgent):
             trajectory=tuple(state.trajectory),
         )
 
-    @staticmethod
     def _finish_forced_step(
+        self,
         state: _ReActState,
         model_output: str,
         thought: str,
@@ -256,14 +273,15 @@ class ReActAgent(BaseAgent):
             )
             return
 
-        answer = action.argument.strip()
+        raw_answer = action.argument.strip()
+        answer = self._answer_normalizer(raw_answer)
         state.trajectory.append(
             TrajectoryStep(
                 step_index=step_index,
                 model_output=model_output,
                 thought=thought,
                 action=action.canonical,
-                observation=f"Finished with best-effort answer: {answer}",
+                observation=f"Finished with best-effort answer: {raw_answer}",
             )
         )
         termination_reason = (
@@ -275,6 +293,14 @@ class ReActAgent(BaseAgent):
             prediction=answer,
             steps=len(state.trajectory),
             tool_calls=state.tool_calls,
-            termination_reason=termination_reason,
+            termination_reason=termination_reason if answer else "invalid_label",
             trajectory=tuple(state.trajectory),
+            metadata=(
+                {}
+                if answer
+                else {
+                    "raw_prediction": raw_answer,
+                    "parse_error": "Finish did not contain a valid task answer.",
+                }
+            ),
         )

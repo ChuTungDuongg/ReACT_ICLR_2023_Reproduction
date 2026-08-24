@@ -7,13 +7,13 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, Protocol
 
-from react_reproduction.evaluation.schemas import (
-    BenchmarkMetrics,
-    PredictionRecord,
-    TrajectoryRecord,
-)
+from react_reproduction.evaluation.schemas import TrajectoryRecord
+
+
+class SerializableArtifact(Protocol):
+    def to_dict(self) -> dict[str, Any]: ...
 
 
 _SAFE_COMPONENT = re.compile(r"[A-Za-z0-9_.-]+")
@@ -63,7 +63,7 @@ def write_config(artifacts: RunArtifacts, config: Mapping[str, Any]) -> None:
     _write_json(artifacts.config_path, config)
 
 
-def append_prediction(artifacts: RunArtifacts, record: PredictionRecord) -> None:
+def append_prediction(artifacts: RunArtifacts, record: SerializableArtifact) -> None:
     with artifacts.predictions_path.open("a", encoding="utf-8", newline="\n") as file:
         json.dump(record.to_dict(), file, ensure_ascii=False)
         file.write("\n")
@@ -82,7 +82,7 @@ def append_trajectory(artifacts: RunArtifacts, record: TrajectoryRecord) -> None
         file.flush()
 
 
-def write_metrics(artifacts: RunArtifacts, metrics: BenchmarkMetrics) -> None:
+def write_metrics(artifacts: RunArtifacts, metrics: SerializableArtifact) -> None:
     _write_json(artifacts.metrics_path, metrics.to_dict())
 
 

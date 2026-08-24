@@ -23,3 +23,8 @@ def test_parse_explicit_final_answer_rejects_unlabeled_output() -> None:
 def test_parse_reasoning_returns_text_before_final_answer() -> None:
     output = "Reasoning: First fact. Then second fact.\nFinal Answer: Result"
     assert parse_reasoning(output) == "First fact. Then second fact."
+
+
+def test_parse_reasoning_recovers_completion_after_prompt_thought_prefix() -> None:
+    output = "Evidence supports the claim.\nAnswer: SUPPORTS"
+    assert parse_reasoning(output) == "Evidence supports the claim."

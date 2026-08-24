@@ -1,19 +1,22 @@
 # Project documents
 
-> 🌐 **Language:** English | [Tiếng Việt](README.vi.md)
+> Language: English | [Tieng Viet](README.vi.md)
 
-This directory contains stable, human-facing generated documents that can be
-committed and shared. It is separate from the ignored benchmark `outputs/`.
+This directory contains stable, tracked documentation:
 
 ```text
 output/
-└── pdf/
-    └── react-reproduction-roadmap.pdf
+  react-reproduction-roadmap.md
+  pdf/react-reproduction-roadmap.pdf
 ```
 
-The roadmap records sprint scope/status, architecture, dependencies, Colab
-commands, acceptance criteria, artifacts, testing, verified smoke results, and
-future work. It reflects completion through Sprint 4 only.
+The Markdown file is the roadmap source of truth. Regenerate the PDF with:
 
-Do not place benchmark predictions, model weights, caches, datasets, or secrets
-in this directory.
+```bash
+python scripts/generate_roadmap_pdf.py
+```
+
+`reportlab` is included in the project requirements for this generator.
+
+The roadmap reflects Sprint 6 completion and the paper-faithful FEVER settings.
+Runtime predictions belong in the ignored `outputs/` directory.

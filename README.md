@@ -1,83 +1,135 @@
-# 🧠 ReAct Paper Reproduction
+# ReAct Paper Reproduction
 
-> 🌐 **Language:** English | [Tiếng Việt](README.vi.md)
+> Language: English | [Tieng Viet](README.vi.md)
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Paper-ICLR%202023-6f42c1" alt="ICLR 2023 paper">
-  <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10+">
-  <img src="https://img.shields.io/badge/Status-Sprint%204%20%2B%20Hybrids-238636" alt="Sprint 4 plus hybrid methods">
-  <img src="https://img.shields.io/badge/Tests-91%20Passing-18A0AE" alt="91 tests passing">
-  <img src="https://img.shields.io/badge/Interface-main.py-102A43" alt="CLI first">
-</p>
+An inspectable implementation of the seven prompting methods evaluated in
+"ReAct: Synergizing Reasoning and Acting in Language Models" (ICLR 2023):
+Standard, CoT, CoT-SC, Act, ReAct, CoT-SC -> ReAct, and ReAct -> CoT-SC.
+HotpotQA and FEVER share one CLI, model provider, batch runner, Wikipedia
+environment, trajectory schema, logging path, and artifact convention.
 
-<p align="center">
-  <a href="output/pdf/react-reproduction-roadmap.pdf">📄 Roadmap</a> •
-  <a href="#google-colab">☁️ Colab</a> •
-  <a href="#cli">⌨️ CLI</a> •
-  <a href="#repository-map">🗂️ File map</a> •
-  <a href="#testing">🧪 Tests</a>
-</p>
+The original paper used PaLM-540B. This project uses
+`Qwen/Qwen2.5-7B-Instruct` by default and reproduces the method and experimental
+protocol, not the paper's absolute model scores.
 
-A framework-free, inspectable implementation of Standard, Chain-of-Thought,
-CoT-SC, Act-only, ReAct, ReAct → CoT-SC, and CoT-SC → ReAct for HotpotQA. It uses
-Hugging Face models and a live Wikipedia environment through one entry point:
-`main.py`.
-
-All methods reuse the six manually composed HotpotQA demonstrations from paper
-Appendix C.1. CoT-SC defaults to the paper setup of 21 samples at temperature
-0.7. The CLI defaults to `Qwen/Qwen2.5-7B-Instruct`; `--model` can still select
-another compatible causal language model.
-
-> Đây là reproduction study dùng modern instruction-tuned LLM, không phải exact
-> reproduction bằng PaLM-540B như paper gốc.
-
-## ✅ Current status
-
-**Sprints 0 through 4 and the two paper hybrid fallback policies are complete.**
-Large cross-method studies, FEVER, ALFWorld, WebShop, and an interactive app
-are not implemented.
+## Project Status
 
 | Sprint | Scope | Status |
 |---:|---|---|
-| 0 | Repository, configuration, logging, CLI skeleton | ✅ Complete |
-| 1 | HotpotQA loader, metrics, schemas, artifact runner | ✅ Complete |
-| 2 | Hugging Face provider, Standard, CoT | ✅ Complete |
-| 3 | Wikipedia Search/Lookup/Finish, Act-only, loop/max-step guards | ✅ Complete |
-| 4 | ReAct loop, live trajectories, trajectory persistence | ✅ Complete |
-| Extension | CoT-SC voting and both ReAct/CoT-SC fallback orders | ✅ Complete |
-| 5+ | Comparison, FEVER, analysis, optional extensions | ⏸️ Not started |
+| 0 | Repository, configuration, logging, CLI | Complete |
+| 1 | HotpotQA dataset, evaluation, artifacts | Complete |
+| 2 | Hugging Face, Standard, CoT | Complete |
+| 3 | Wikipedia environment, Act | Complete |
+| 4 | ReAct and trajectories | Complete |
+| 5 | HotpotQA seven-method comparison | Functionally complete; superseded by the executed 500-example benchmark |
+| 6 | Paper-faithful FEVER reproduction | Complete |
+| 7 | Research report and failure analysis | Partially started |
+| 8 | UI | Not started |
+| 9 | Optional extensions/fine-tuning | Not started |
 
-The full requirements and sprint-by-sprint acceptance criteria are in the
-[roadmap PDF](output/pdf/react-reproduction-roadmap.pdf).
+HotpotQA has completed 500-example runs for all seven methods. Historical runs
+were made across different code versions and batch policies, so a controlled
+rerun remains future cleanup. Existing analysis covers termination behavior,
+hybrid paths, CoT-SC confidence, and method overlap.
 
-## 🚀 Quick start
+FEVER is implemented and tested; its 500-example results are **TBD** until the
+full Colab benchmark is run. ALFWorld, WebShop, and UI are not implemented.
+
+The maintained roadmap is available as
+[source](output/react-reproduction-roadmap.md) and
+[PDF](output/pdf/react-reproduction-roadmap.pdf).
+
+## Supported Surface
+
+Tasks:
+
+- `hotpotqa`
+- `fever`
+
+Methods:
+
+- `standard`
+- `cot`
+- `cot-sc`
+- `act`
+- `react`
+- `cot-sc-react`
+- `react-cot-sc`
+
+All commands use `python main.py benchmark`; there is no task-specific
+executable.
+
+## FEVER Protocol
+
+FEVER is evaluated as claim verification with exactly three canonical labels:
+`SUPPORTS`, `REFUTES`, and `NOT ENOUGH INFO`. The target model receives only the
+claim. Gold evidence, contexts, and supporting pages are never included in the
+prompt.
+
+The prompts use the three manually composed examples from Appendix C.2:
+
+1. Nikolaj Coster-Waldau worked with the Fox Broadcasting Company. (`SUPPORTS`)
+2. Stranger Things is set in Bloomington, Indiana. (`REFUTES`)
+3. Beautiful reached number two on the Billboard Hot 100 in 2003. (`NOT ENOUGH INFO`)
+
+Standard, CoT, Act, and ReAct are controlled ablations over those same examples.
+Act and ReAct retain the paper's `Search[entity]`, `Lookup[string]`, and
+`Finish[label]` action space. Search returns the first five sentences for a
+resolved page or up to five Wikipedia suggestions when no page resolves;
+repeated Lookup advances to the next occurrence.
+
+FEVER uses Accuracy as its primary metric. ReAct has a default five-step budget.
+CoT-SC uses 21 stochastic generations at temperature 0.7 and deterministic
+first-observed tie-breaking, an implementation detail because the paper does not
+specify ties. CoT-SC -> ReAct falls back when the winner has fewer than `n/2`
+votes (10 or fewer for 21); ReAct -> CoT-SC falls back only when ReAct fails to
+return a valid label within its budget. No fine-tuning is performed in Sprint 6.
+
+## Paper vs Reproduction
+
+| Paper | Reproduction |
+|---|---|
+| PaLM-540B | Qwen2.5-7B-Instruct |
+| FEVER claim-only | Same |
+| Three FEVER exemplars | Same Appendix C.2 examples |
+| Search/Lookup/Finish | Same conceptual action space |
+| CoT-SC `n=21` | Same |
+| CoT-SC temperature `0.7` | Same |
+| FEVER ReAct max steps `5` | Same |
+| Primary metric Accuracy | Same |
+| Fine-tuning | Not part of Sprint 6 |
+| Batching | Engineering optimization; per-example state remains isolated |
+
+Paper Table 1 FEVER Accuracy values are references only, not project results:
+
+| Method | Paper Accuracy |
+|---|---:|
+| Standard | 57.1 |
+| CoT | 56.3 |
+| CoT-SC | 60.4 |
+| Act | 58.9 |
+| ReAct | 60.9 |
+| CoT-SC -> ReAct | 64.6 |
+| ReAct -> CoT-SC | 62.0 |
+
+## Quick Start
 
 ```bash
-git clone https://github.com/ChuTungDuongg/ReACT_ICLR_2023_Reproduction.git
-cd ReACT_ICLR_2023_Reproduction
 python -m venv .venv
-
-# Linux/macOS
-source .venv/bin/activate
-
-# Windows PowerShell instead:
-# .venv\Scripts\Activate.ps1
-
-python -m pip install --upgrade pip
+# Linux/macOS: source .venv/bin/activate
+# Windows PowerShell: .venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
+python main.py --help
 python main.py doctor
 ```
 
-No notebook is required or included. The model and dataset are downloaded to
-the ignored project-local `cache/huggingface/` directory on first use.
+Model and dataset downloads are kept under the ignored
+`cache/huggingface/` directory. Set `HF_TOKEN` in the environment for higher
+Hugging Face Hub rate limits; do not store it in the repository.
 
-<a id="google-colab"></a>
+## FEVER Colab Commands
 
-## ☁️ Google Colab
-
-Run these commands in Colab cells. CUDA is selected automatically when the
-installed PyTorch build and GPU support it; otherwise inference falls back to
-CPU. `bitsandbytes` is not required.
+Install once:
 
 ```python
 !git clone https://github.com/ChuTungDuongg/ReACT_ICLR_2023_Reproduction.git
@@ -86,279 +138,148 @@ CPU. `bitsandbytes` is not required.
 !python main.py doctor
 ```
 
-Then run the requested five-sample benchmark:
-
-```python
-!python main.py benchmark \
-    --task hotpotqa \
-    --method react \
-    --model Qwen/Qwen2.5-7B-Instruct \
-    --num-samples 5 \
-    --seed 42 \
-    --show-trajectories
-```
-
-### HotpotQA notes for Colab
-
-- `--num-samples` is the total number of examples. `--batch-size` controls how
-  many examples share one GPU generation call for every method; the model is
-  loaded once and reused for the complete run.
-- The configured `hotpotqa/hotpot_qa`, `distractor`, `validation` split contains
-  **7,405 examples**. The valid range is therefore `1-7405`; a larger request
-  stops with a validation error.
-- Use 5 examples for a smoke test, 20-50 for prompt/failure inspection, and only
-  start 100/500+ runs after validating runtime and MediaWiki reliability.
-- Do not add `--quiet` when running in Colab. Each example prints a compact
-  prediction, gold answer, Answer EM/F1, termination reason, and operational
-  summary. All 12 official HotpotQA metrics are still printed at the end and
-  saved to `metrics.json`/`run.log`.
-- Empty predictions are displayed as `<EMPTY>`. Per-example supporting-fact and
-  joint details are available with `--log-level DEBUG`, since this milestone
-  does not yet emit evidence pairs.
-- Before processing each example, the log prints its progress, `example_id`, and
-  question so the active sample is immediately visible in Colab.
-- `metrics.json` contains answer `EM/F1/precision/recall`, supporting-fact
-  `SP EM/F1/precision/recall`, joint `EM/F1/precision/recall`, evidence coverage,
-  runtime, average steps/tools, and termination reasons.
-- The formulas mirror the
-  [official HotpotQA evaluator](https://github.com/hotpotqa/hotpot/blob/master/hotpot_evaluate_v1.py).
-- Sprint 4 agents currently return answers but do not emit HotpotQA
-  `(title, sentence_id)` evidence pairs. The official evaluator therefore scores
-  an empty supporting-fact prediction (SP/joint scores are normally zero) and
-  reports evidence coverage explicitly; it never invents evidence.
-- Qwen2.5-7B requires substantially more memory than the earlier 3B example.
-  An L4/A100-class Colab GPU is recommended. A T4 may offload part of the model
-  to system RAM through `device_map=auto`, which is much slower.
-
-Optionally set `HF_TOKEN` in the Colab environment before the run to receive
-higher Hugging Face Hub rate limits. The command streams progress and every
-Thought/Action/Observation to stdout while also writing `run.log`.
-
-<a id="cli"></a>
-
-## ⌨️ CLI
-
-```bash
-python main.py --help
-python main.py doctor
-
-python main.py benchmark \
-    --task hotpotqa \
-    --method standard \
-    --model Qwen/Qwen2.5-7B-Instruct \
-    --num-samples 5 \
-    --seed 42 \
-    --batch-size 4
-
-python main.py benchmark \
-    --task hotpotqa \
-    --method cot \
-    --model Qwen/Qwen2.5-7B-Instruct \
-    --num-samples 5 \
-    --seed 42 \
-    --batch-size 4
-
-python main.py benchmark \
-    --task hotpotqa \
-    --method cot-sc \
-    --model Qwen/Qwen2.5-7B-Instruct \
-    --num-samples 5 \
-    --seed 42 \
-    --batch-size 4 \
-    --cot-sc-samples 21 \
-    --cot-sc-temperature 0.7
-
-python main.py benchmark \
-    --task hotpotqa \
-    --method act \
-    --model Qwen/Qwen2.5-7B-Instruct \
-    --num-samples 5 \
-    --seed 42 \
-    --batch-size 4 \
-    --show-trajectories
-
-python main.py benchmark \
-    --task hotpotqa \
-    --method react \
-    --model Qwen/Qwen2.5-7B-Instruct \
-    --num-samples 5 \
-    --seed 42 \
-    --batch-size 4 \
-    --show-trajectories
-```
-
-### Paper hybrid methods
-
-Run **ReAct → CoT-SC**. ReAct runs first; CoT-SC is used only when ReAct does
-not produce a natural `Finish` within its step budget:
+Standard:
 
 ```bash
 python main.py benchmark \
-    --task hotpotqa \
-    --method react-cot-sc \
-    --model Qwen/Qwen2.5-7B-Instruct \
-    --num-samples 5 \
-    --seed 42 \
-    --max-agent-steps 7 \
-    --batch-size 2 \
-    --cot-sc-samples 21 \
-    --cot-sc-temperature 0.7
+  --task fever \
+  --method standard \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --num-samples 500 \
+  --seed 42 \
+  --batch-size 32
 ```
 
-Run **CoT-SC → ReAct**. CoT-SC always runs first; ReAct is used when the most
-common normalized answer appears fewer than `n/2` times:
+CoT:
 
 ```bash
 python main.py benchmark \
-    --task hotpotqa \
-    --method cot-sc-react \
-    --model Qwen/Qwen2.5-7B-Instruct \
-    --num-samples 5 \
-    --seed 42 \
-    --max-agent-steps 7 \
-    --batch-size 2 \
-    --cot-sc-samples 21 \
-    --cot-sc-temperature 0.7
+  --task fever \
+  --method cot \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --num-samples 500 \
+  --seed 42 \
+  --batch-size 16
 ```
 
-The two commands intentionally match the paper defaults. For a pipeline smoke
-test, temporarily use `--cot-sc-samples 3`; use 21 for a paper-style run. Do
-not start at 500 examples: CoT-SC → ReAct requires at least 21 model generations
-per example (10,500 for 500 examples), while ReAct → CoT-SC pays that cost only
-on fallback. Add `--show-trajectories` only for small diagnostic runs because it
-prints every CoT sample and every ReAct step.
+CoT-SC:
 
-On an A100, start with `--batch-size 2`; try 3 or 4 if memory remains comfortable.
-Standard and CoT batch their one-pass prompts. CoT-SC batches the questions on
-every one of its 21 sampling rounds. Act/ReAct batch active questions at the
-same step while preserving a separate Wikipedia state and trajectory for each
-question. Results are still flushed in dataset order after each batch, so an
-interruption can lose at most the current batch. Batch size changes generation
-scheduling and can change sampled outputs even with the same seed; record it
-when comparing runs.
+```bash
+python main.py benchmark \
+  --task fever \
+  --method cot-sc \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --num-samples 500 \
+  --seed 42 \
+  --batch-size 16 \
+  --cot-sc-samples 21 \
+  --cot-sc-temperature 0.7
+```
 
-Useful overrides include `--device auto|cpu|cuda|mps`, `--batch-size`, `--max-agent-steps`,
-`--max-new-tokens`, `--temperature`, `--top-p`, `--cot-sc-samples`,
-`--cot-sc-temperature`, `--react-best-effort-finalization`, `--log-level`, and
-`--trust-remote-code`. ReAct uses the normal generation temperature (default
-0.0); only CoT-SC uses `--cot-sc-temperature` (default 0.7).
+Act:
 
-Act/ReAct treats `Search` as an article-opening operation for a concise entity
-or title, while `Lookup` reads details inside the current article. A second
-identical `Search` is skipped with a recovery hint; a third is recorded as an
-`action_loop`. ReAct defaults to the paper-style policy: it may use all seven
-steps and returns an empty prediction if it never emits `Finish`, which is also
-what activates the ReAct → CoT-SC fallback. The same policy is used by
-standalone ReAct and both hybrids for a fair comparison. The optional
-`--react-best-effort-finalization` flag forces a final/recovery `Finish`, but it
-is an experimental override and should not be used when comparing with the
-paper table. Act-only retains its best-effort final step.
+```bash
+python main.py benchmark \
+  --task fever \
+  --method act \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --num-samples 500 \
+  --seed 42 \
+  --batch-size 16 \
+  --max-agent-steps 5
+```
 
-`--model` is optional and defaults to `Qwen/Qwen2.5-7B-Instruct`. Standard,
-CoT, CoT-SC, Act-only, ReAct, and both hybrids receive the corresponding six-example
-prompt material from Appendix C.1; the target example still contains only its
-question.
+ReAct:
 
-## 🧩 How the seven CLI methods work
+```bash
+python main.py benchmark \
+  --task fever \
+  --method react \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --num-samples 500 \
+  --seed 42 \
+  --batch-size 8 \
+  --max-agent-steps 5
+```
 
-| Method | Explicit reasoning | Wikipedia | Execution path |
-|---|---:|---:|---|
-| Standard | No | No | Question → concise answer |
-| CoT | Yes | No | Question → reasoning → answer |
-| CoT-SC | Yes | No | 21 sampled CoT answers → normalized majority vote |
-| Act-only | No | Yes | Action ↔ Observation → Finish |
-| ReAct | Yes | Yes | Thought → Action → Observation → Finish |
-| ReAct → CoT-SC | Yes | On ReAct leg | ReAct; on failure, 21 CoT samples → vote |
-| CoT-SC → ReAct | Yes | On fallback | 21 CoT samples → vote; low confidence → ReAct |
+CoT-SC -> ReAct:
 
-The agents are direct Python loops, not wrappers around LangChain, LangGraph,
-CrewAI, or AutoGen. This keeps parsing, environment state, termination reasons,
-and trajectories visible for research inspection.
+```bash
+python main.py benchmark \
+  --task fever \
+  --method cot-sc-react \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --num-samples 500 \
+  --seed 42 \
+  --batch-size 8 \
+  --max-agent-steps 5 \
+  --cot-sc-samples 21 \
+  --cot-sc-temperature 0.7
+```
 
-## 🏗️ Runtime flow
+ReAct -> CoT-SC:
+
+```bash
+python main.py benchmark \
+  --task fever \
+  --method react-cot-sc \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --num-samples 500 \
+  --seed 42 \
+  --batch-size 8 \
+  --max-agent-steps 5 \
+  --cot-sc-samples 21 \
+  --cot-sc-temperature 0.7
+```
+
+Batch size is an engineering setting, not a paper hyperparameter. Start with
+3-5 examples for a smoke run. `--show-trajectories` prints full reasoning and
+tool traces; without it, CoT-SC logs only the winner, count, and vote map while
+full samples remain in `trajectories.jsonl`.
+
+## Architecture
 
 ```text
-main.py
-  → CLI + validated YAML configuration
-  → deterministic HotpotQA sample
-  → HuggingFaceProvider (CUDA/CPU/MPS auto-detection)
-  → selected Standard / CoT / CoT-SC / Act / ReAct / hybrid agent
-      └─ ReAct leg → WikipediaEnvironment → MediaWiki API
-  → official HotpotQA answer/supporting-fact/joint evaluator
-  → flushed JSONL + JSON + live/file logs
+main.py / CLI
+  -> task dataset adapter (HotpotQA or FEVER)
+  -> shared Standard / CoT / CoT-SC / Act / ReAct / hybrid agents
+  -> shared Hugging Face provider and batch scheduling
+  -> per-example WikipediaEnvironment for interactive methods
+  -> task evaluator (HotpotQA metrics or FEVER Accuracy)
+  -> shared output serializer and live/file logging
 ```
 
-<a id="repository-map"></a>
+Batching does not merge agent state. Each Act/ReAct example owns its current
+page, Lookup offsets, history, counters, and termination state. Hybrid fallback
+is dispatched only for examples that satisfy the paper heuristic.
 
-## 🗂️ Repository map
+## Run Artifacts
 
 ```text
-.
-├── main.py                         # Single CLI entry point
-├── requirements.txt                # Runtime and test dependencies
-├── configs/
-│   └── default.yaml                # Versioned experiment defaults
-├── output/
-│   └── pdf/                        # Stable human-facing roadmap PDF
-├── outputs/                        # Ignored runtime benchmark artifacts
-├── src/react_reproduction/
-│   ├── agents/                     # Base agents, CoT-SC voting, hybrid policies
-│   ├── datasets/                   # Shared example + HotpotQA loader
-│   ├── evaluation/                 # Full official metrics + serializable schemas
-│   ├── experiments/                # Run orchestration and artifact writers
-│   ├── llm/                        # Provider contract + Hugging Face backend
-│   ├── prompts/                    # HotpotQA prompt builders
-│   ├── tools/                      # Wikipedia client and stateful environment
-│   ├── cli.py                      # Argument parsing and dependency wiring
-│   ├── config.py                   # Typed YAML/environment configuration
-│   └── logging_utils.py            # UTF-8 live stdout + run.log
-└── tests/                           # 91 deterministic tests
+outputs/<task>/<method>/<run_id>/
+  config.json
+  metrics.json
+  predictions.jsonl
+  trajectories.jsonl
+  run.log
 ```
 
-Each first-level directory has its own README:
+The default FEVER source is the official ReAct repository's
+`data/paper_dev.jsonl`, pinned to a Git commit. It matches the official wrapper
+and avoids both obsolete Hugging Face dataset scripts and evidence-expanded
+duplicate rows in `labelled_dev`. The pinned source contains 9,999 claims.
 
-- [Source guide](src/README.md)
-- [Configuration guide](configs/README.md)
-- [Test guide](tests/README.md)
-- [Runtime output guide](outputs/README.md)
-- [Project document guide](output/README.md)
+`config.json` records dataset/split, model and resolved revision when exposed,
+method, seed, sample IDs, batch and generation settings, task step budget,
+CoT-SC settings and threshold, prompt version, code version, and timestamp.
+FEVER predictions include claim, canonical prediction, correctness,
+invalid/unparsed state, steps, tool calls, termination, latency, and relevant
+vote/execution-path metadata. FEVER metrics include Accuracy, invalid count,
+class distributions, per-class accuracy, confusion matrix, operational averages,
+runtime, and termination reasons. Evidence scoring is intentionally outside
+Sprint 6.
 
-## 📦 Run artifacts
-
-Every benchmark gets an isolated UTC-stamped directory:
-
-```text
-outputs/hotpotqa/<method>/<UTC timestamp>/
-├── config.json          # Complete reproducibility settings
-├── metrics.json         # Official HotpotQA + operational metrics
-├── predictions.jsonl    # One record per example, flushed immediately
-├── trajectories.jsonl   # Act/ReAct/hybrid phases, one record per example
-└── run.log              # Same inspectable progress retained from stdout
-```
-
-`predictions.jsonl` is flushed in dataset order after each completed inference
-batch and includes per-example answer, supporting-fact, and joint scores.
-`trajectories.jsonl` is created for Act/ReAct/hybrid runs and contains phase
-labels (`cot_sc` or `react`), model output, Thought, canonical Action, and actual
-environment Observation. Hybrid `predictions.jsonl` records also include vote
-counts, confidence, selected path, and whether fallback was used.
-
-## 📊 Verified development smoke result
-
-This is a small pipeline check, **not a paper-quality benchmark result** and not
-evidence about larger Qwen models. No result is fabricated.
-
-| Date | Task | Method | Model | Samples | Max steps | Exact Match | Terminations |
-|---|---|---|---|---:|---:|---:|---|
-| 2026-08-23 | HotpotQA | ReAct | Qwen2.5-0.5B-Instruct | 3 | 3 | 0.0 (0/3) | loop 1, max-step 1, parse 1 |
-
-The run used real Hugging Face inference and live MediaWiki responses on local
-CPU. All three examples produced persisted trajectories; the small model did
-not reach a correct `Finish` answer in this smoke run.
-
-<a id="testing"></a>
-
-## 🧪 Testing and reproducibility
+## Verification
 
 ```bash
 python -m pytest -q
@@ -367,44 +288,26 @@ python main.py --help
 python main.py doctor
 ```
 
-The 91-test suite is offline/model-free and covers configuration/CLI smoke,
-seeded HotpotQA loading, official answer/supporting-fact/joint metrics, Hugging Face agent wiring,
-six-example paper prompt packs, numbered-label parsing, Standard/CoT parsing,
-Wikipedia Search/Lookup/Finish, ambiguity, repeated
-Lookup, loop detection, max steps, Act-only/ReAct recovery, incremental
-prediction persistence, CoT-SC voting/thresholds, both hybrid fallback orders,
-and trajectory persistence.
+The offline suite uses scripted providers and fake Wikipedia clients; it does
+not download Qwen. It covers FEVER labels, deterministic claim-only loading,
+the exact three prompt examples and ablations, all seven paths, `11/21` and
+`10/21` fallback boundaries, batch isolation, serialization, Accuracy, the
+paper-fidelity audit, and HotpotQA regression.
 
-## ⚙️ Dependencies
+## Known Limitations
 
-- `torch`, `transformers`, and `accelerate`: local Hugging Face inference and
-  automatic device placement;
-- `datasets`: HotpotQA access and caching;
-- `requests` and `tenacity`: MediaWiki calls with timeout/retry handling;
-- `PyYAML` and `python-dotenv`: configuration;
-- `pytest`: repository verification.
+- FEVER 500-example project results are TBD; no score is fabricated here.
+- Qwen2.5-7B and current Wikipedia differ from PaLM-540B and the historical
+  Wikipedia snapshot, so exact paper scores are not expected.
+- MediaWiki availability and evolving article content affect Act/ReAct runs.
+- HotpotQA historical runs used different code versions/batch policies.
+- HotpotQA retains its legacy repeated-Search loop guard for historical behavior;
+  FEVER disables that guard and lets ReAct consume the paper's five-step budget.
+- HotpotQA agents do not emit `(title, sentence_id)` evidence pairs, so its
+  supporting-fact and joint metrics remain limited.
+- Fine-tuning, ALFWorld, WebShop, and UI are outside Sprint 6.
 
-Model loading is lazy. CUDA uses BF16 when supported, otherwise FP16; CPU uses
-FP32. `bitsandbytes` is intentionally not a required dependency.
-
-## ⚠️ Limitations
-
-- This milestone stops at Sprint 4; no cross-method benchmark table or
-  statistical study has been run.
-- The original PaLM-540B model, prompts, serving stack, and historical
-  Wikipedia state are unavailable, so exact numerical replication is not
-  expected.
-- Wikipedia search/content can change, and network availability affects
-  Act/ReAct runs.
-- Paper-style CoT-SC uses 21 generations per evaluated example, so hybrid runs
-  can cost substantially more time and GPU quota than plain ReAct.
-- A 3B model may exceed some local machines; Colab GPU memory and runtime tier
-  determine feasible speed. Use a smaller model only for pipeline debugging.
-- Generated text can violate the action grammar. The parser takes the first
-  valid action, records parsing failures, and the environment guards loops and
-  maximum steps.
-
-## 📄 Citation
+## Citation
 
 ```bibtex
 @inproceedings{yao2023react,

@@ -9,7 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from react_reproduction.cli import DEFAULT_MODEL, METHODS, build_parser
+from react_reproduction.cli import DEFAULT_MODEL, METHODS, _resolve_task_runtime, build_parser
+from react_reproduction.config import load_project_config
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -106,6 +107,37 @@ def test_all_methods_accept_configurable_batch_size(
     )
 
     assert args.batch_size == batch_size
+
+
+@pytest.mark.parametrize("method", METHODS)
+def test_all_methods_accept_fever_with_batching(method: str) -> None:
+    args = build_parser(PROJECT_ROOT).parse_args(
+        [
+            "benchmark",
+            "--task",
+            "fever",
+            "--method",
+            method,
+            "--batch-size",
+            "3",
+        ]
+    )
+    assert args.task == "fever"
+    assert args.batch_size == 3
+
+
+def test_fever_task_runtime_uses_paper_defaults() -> None:
+    config = load_project_config(
+        PROJECT_ROOT / "configs" / "default.yaml",
+        project_root=PROJECT_ROOT,
+    )
+    runtime = _resolve_task_runtime(config, "fever")
+    assert runtime.default_max_steps == 5
+    assert runtime.split == "dev"
+    assert runtime.subset == "paper_dev"
+    assert runtime.dataset_revision == config.fever.revision
+    assert runtime.prompt_suite.version == "fever-appendix-c2-v1"
+    assert runtime.guard_repeated_search is False
 
 
 def test_doctor_loads_default_config() -> None:

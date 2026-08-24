@@ -13,7 +13,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 DEFAULT_API_URL = "https://en.wikipedia.org/w/api.php"
 USER_AGENT = (
-    "ReActPaperReproduction/0.10.0 "
+    "ReActPaperReproduction/0.11.0 "
     "(https://github.com/ChuTungDuongg/ReACT_ICLR_2023_Reproduction)"
 )
 
@@ -90,6 +90,14 @@ class WikipediaClient:
         cleaned_query = query.strip()
         if not cleaned_query:
             raise ValueError("Wikipedia search query cannot be empty.")
+        exact_article = self.get_article(cleaned_query)
+        if exact_article is not None:
+            return WikipediaSearchResult(
+                cleaned_query,
+                exact_article,
+                (exact_article.title,),
+            )
+
         payload = self._request(
             {
                 "action": "query",
@@ -107,20 +115,7 @@ class WikipediaClient:
             for result in raw_results
             if isinstance(result, dict) and result.get("title")
         )
-        if not candidates:
-            return WikipediaSearchResult(cleaned_query, None, ())
-
-        normalized_query = _normalize_title(cleaned_query)
-        selected_title = next(
-            (
-                title
-                for title in candidates
-                if _normalize_title(title) == normalized_query
-            ),
-            candidates[0],
-        )
-        article = self.get_article(selected_title)
-        return WikipediaSearchResult(cleaned_query, article, candidates)
+        return WikipediaSearchResult(cleaned_query, None, candidates)
 
     def get_article(self, title: str) -> WikipediaArticle | None:
         payload = self._request(
@@ -180,7 +175,8 @@ class WikipediaEnvironment:
         *,
         max_steps: int = 7,
         max_repeated_actions: int = 3,
-        max_observation_chars: int = 1_200,
+        max_observation_chars: int = 4_000,
+        guard_repeated_search: bool = True,
     ) -> None:
         if max_steps <= 0:
             raise ValueError("max_steps must be positive.")
@@ -192,6 +188,7 @@ class WikipediaEnvironment:
         self.max_steps = max_steps
         self.max_repeated_actions = max_repeated_actions
         self.max_observation_chars = max_observation_chars
+        self.guard_repeated_search = guard_repeated_search
         self.reset()
 
     def reset(self) -> None:
@@ -207,9 +204,13 @@ class WikipediaEnvironment:
             raise RuntimeError("Wikipedia environment is already terminated; call reset().")
 
         canonical = action.canonical.casefold()
-        if action.action_type is ActionType.SEARCH and canonical == self._last_action:
+        if (
+            self.guard_repeated_search
+            and action.action_type is ActionType.SEARCH
+            and canonical == self._last_action
+        ):
             self._consecutive_repeats += 1
-        elif action.action_type is ActionType.SEARCH:
+        elif self.guard_repeated_search and action.action_type is ActionType.SEARCH:
             self._last_action = canonical
             self._consecutive_repeats = 1
         else:
@@ -287,7 +288,10 @@ class WikipediaEnvironment:
         if result.article is None:
             self.current_article = None
             return ToolExecution(
-                observation=f"No Wikipedia article found for: {query.strip()}.",
+                observation=(
+                    f"Could not find [{query.strip()}]. "
+                    f"Similar: {list(result.candidates[:5])}."
+                ),
                 terminated=False,
             )
 
@@ -364,7 +368,7 @@ def _split_sentences(text: str) -> list[str]:
 
 def _article_summary(text: str, max_chars: int) -> str:
     sentences = _split_sentences(text)
-    summary = " ".join(sentences[:3]) if sentences else "No article extract available."
+    summary = " ".join(sentences[:5]) if sentences else "No article extract available."
     if len(summary) <= max_chars:
         return summary
     return summary[: max_chars - 3].rstrip() + "..."

@@ -1,4 +1,4 @@
-"""Model-agnostic HotpotQA benchmark runner with mock inference support."""
+"""Task-neutral benchmark runner with shared batching and artifact persistence."""
 
 from __future__ import annotations
 
@@ -12,17 +12,14 @@ from typing import Any, Iterator, Mapping, Protocol, Sequence
 from react_reproduction import __version__
 from react_reproduction.agents.base import AgentResult
 from react_reproduction.datasets.base import BenchmarkExample
-from react_reproduction.evaluation.metrics import (
-    aggregate_hotpotqa_metrics,
-    answer_metrics,
-    joint_metrics,
-    supporting_fact_metrics,
+from react_reproduction.evaluation.evaluators import (
+    FeverEvaluator,
+    HotpotQAEvaluator,
+    Metrics,
+    Prediction,
+    TaskEvaluator,
 )
-from react_reproduction.evaluation.schemas import (
-    BenchmarkMetrics,
-    PredictionRecord,
-    TrajectoryRecord,
-)
+from react_reproduction.evaluation.schemas import TrajectoryRecord
 from react_reproduction.experiments.artifacts import (
     RunArtifacts,
     append_prediction,
@@ -39,7 +36,7 @@ class Predictor(Protocol):
 
 
 class MockPredictor:
-    """Deterministic inference double used only by tests and runner smoke checks."""
+    """Deterministic inference double used by tests and smoke checks."""
 
     def __init__(
         self,
@@ -78,6 +75,12 @@ class BenchmarkRunConfig:
     batch_size: int = 1
     method_settings: Mapping[str, Any] = field(default_factory=dict)
     device: str = "auto"
+    dataset_split: str | None = None
+    dataset_subset: str | None = None
+    dataset_revision: str | None = None
+    model_revision: str | None = None
+    prompt_version: str | None = None
+    sampling_metadata: Mapping[str, Any] = field(default_factory=dict)
     code_version: str = __version__
     timestamp: str = field(default_factory=lambda: _utc_now().isoformat())
 
@@ -93,31 +96,47 @@ class BenchmarkRunConfig:
         result = asdict(self)
         result["generation"] = dict(self.generation)
         result["method_settings"] = dict(self.method_settings)
+        result["sampling_metadata"] = dict(self.sampling_metadata)
+        result["split"] = self.dataset_split
+        result["subset"] = self.dataset_subset
+        result.update(
+            {
+                key: self.generation.get(key)
+                for key in ("temperature", "top_p", "max_new_tokens")
+            }
+        )
+        for key in (
+            "cot_sc_samples",
+            "cot_sc_temperature",
+            "cot_sc_threshold",
+        ):
+            result[key] = self.method_settings.get(key)
         return result
 
 
 @dataclass(frozen=True, slots=True)
 class BenchmarkRunResult:
-    """In-memory summary and filesystem locations for a completed run."""
-
-    metrics: BenchmarkMetrics
-    predictions: tuple[PredictionRecord, ...]
+    metrics: Metrics
+    predictions: tuple[Prediction, ...]
     artifacts: RunArtifacts
 
 
-def run_hotpotqa_benchmark(
+def run_benchmark(
     examples: Sequence[BenchmarkExample],
     predictor: Predictor,
     config: BenchmarkRunConfig,
     *,
+    evaluator: TaskEvaluator,
     output_root: Path,
     logger: logging.Logger | None = None,
     artifacts: RunArtifacts | None = None,
     show_trajectories: bool = False,
 ) -> BenchmarkRunResult:
-    """Evaluate a predictor and persist every prediction incrementally."""
-    if config.task != "hotpotqa":
-        raise ValueError("run_hotpotqa_benchmark requires task='hotpotqa'.")
+    """Evaluate one task through the shared batching and persistence path."""
+    if config.task != evaluator.task:
+        raise ValueError(
+            f"Evaluator task {evaluator.task!r} does not match {config.task!r}."
+        )
     if len(examples) != config.num_samples:
         raise ValueError(
             "The number of examples must match config.num_samples: "
@@ -131,7 +150,9 @@ def run_hotpotqa_benchmark(
         method=config.method,
         timestamp=config.timestamp,
     )
-    write_config(active_artifacts, config.to_dict())
+    config_payload = config.to_dict()
+    config_payload["sample_ids"] = [example.example_id for example in examples]
+    write_config(active_artifacts, config_payload)
     persist_trajectories = config.method in {
         "cot-sc",
         "act",
@@ -143,7 +164,7 @@ def run_hotpotqa_benchmark(
         initialize_trajectories(active_artifacts)
 
     run_started = time.perf_counter()
-    prediction_records: list[PredictionRecord] = []
+    records: list[Prediction] = []
     running_correct = 0
 
     for index, example, output, latency in _predict_in_batches(
@@ -151,63 +172,16 @@ def run_hotpotqa_benchmark(
         predictor,
         batch_size=config.batch_size,
         logger=active_logger,
+        input_name=evaluator.input_name,
     ):
-        answer_em, answer_f1, answer_precision, answer_recall = answer_metrics(
-            output.prediction,
-            example.gold_answer,
-        )
-        predicted_supporting_facts = output.supporting_facts
-        gold_supporting_facts = _extract_supporting_facts(
-            example.metadata.get("supporting_facts")
-        )
-        (
-            supporting_fact_em,
-            supporting_fact_f1,
-            supporting_fact_precision,
-            supporting_fact_recall,
-        ) = supporting_fact_metrics(
-            predicted_supporting_facts,
-            gold_supporting_facts,
-        )
-        joint_em, joint_f1, joint_precision, joint_recall = joint_metrics(
-            answer_em,
-            answer_precision,
-            answer_recall,
-            supporting_fact_em,
-            supporting_fact_precision,
-            supporting_fact_recall,
-        )
-        correct = answer_em
-        running_correct += int(correct)
-
-        record = PredictionRecord(
-            example_id=example.example_id,
-            task=config.task,
+        record = evaluator.evaluate(
+            example,
+            output,
             method=config.method,
-            question_or_claim=example.input_text,
-            gold_answer=example.gold_answer,
-            prediction=output.prediction,
-            correct=correct,
-            answer_f1=answer_f1,
-            answer_precision=answer_precision,
-            answer_recall=answer_recall,
-            predicted_supporting_facts=predicted_supporting_facts,
-            gold_supporting_facts=gold_supporting_facts,
-            supporting_fact_exact_match=supporting_fact_em,
-            supporting_fact_f1=supporting_fact_f1,
-            supporting_fact_precision=supporting_fact_precision,
-            supporting_fact_recall=supporting_fact_recall,
-            joint_exact_match=joint_em,
-            joint_f1=joint_f1,
-            joint_precision=joint_precision,
-            joint_recall=joint_recall,
-            agent_metadata=output.metadata,
-            steps=output.steps,
-            tool_calls=output.tool_calls,
-            termination_reason=output.termination_reason,
             latency=latency,
         )
-        prediction_records.append(record)
+        records.append(record)
+        running_correct += int(record.correct)
         append_prediction(active_artifacts, record)
         if persist_trajectories:
             append_trajectory(
@@ -216,73 +190,81 @@ def run_hotpotqa_benchmark(
                     example_id=example.example_id,
                     task=config.task,
                     method=config.method,
-                    termination_reason=output.termination_reason,
+                    termination_reason=record.termination_reason,
                     steps=output.trajectory,
                 ),
             )
 
         if show_trajectories:
-            for step in output.trajectory:
-                phase_suffix = f" [{step.phase}]" if step.phase else ""
-                active_logger.info("Step %d%s", step.step_index, phase_suffix)
-                if step.thought:
-                    active_logger.info("Thought: %s", step.thought)
-                if step.action:
-                    active_logger.info("Action: %s", step.action)
-                if step.observation:
-                    active_logger.info("Observation: %s", step.observation)
-                active_logger.info("Model output: %s", step.model_output)
-        displayed_prediction = output.prediction or "<EMPTY>"
-        active_logger.info("Prediction: %s", displayed_prediction)
+            _log_trajectory(active_logger, output)
+        active_logger.info("Prediction: %s", record.prediction or "<EMPTY>")
         active_logger.info("Gold: %s", example.gold_answer)
-        if output.metadata:
-            active_logger.info("Agent metadata: %s", dict(output.metadata))
+        _log_agent_metadata(active_logger, output.metadata)
+        evaluator.log_record(active_logger, record)
         active_logger.info(
-            "Answer | EM: %.4f | F1: %.4f",
-            float(answer_em),
-            answer_f1,
-        )
-        active_logger.debug(
-            "Answer detail | Precision: %.4f | Recall: %.4f",
-            answer_precision,
-            answer_recall,
-        )
-        active_logger.debug(
-            "Supporting-fact metrics | EM: %.4f | F1: %.4f | Precision: %.4f | "
-            "Recall: %.4f | Predicted: %d | Gold: %d",
-            supporting_fact_em,
-            supporting_fact_f1,
-            supporting_fact_precision,
-            supporting_fact_recall,
-            len(predicted_supporting_facts),
-            len(gold_supporting_facts),
-        )
-        active_logger.debug(
-            "Joint metrics | EM: %.4f | F1: %.4f | Precision: %.4f | Recall: %.4f",
-            joint_em,
-            joint_f1,
-            joint_precision,
-            joint_recall,
-        )
-        active_logger.info(
-            "Result | Correct: %s | Running EM: %.2f%% | Termination: %s | "
+            "Result | Correct: %s | Running %s: %.2f%% | Termination: %s | "
             "Steps: %d | Tool calls: %d | Latency: %.3fs",
-            correct,
+            record.correct,
+            evaluator.running_metric_name,
             100.0 * running_correct / index,
-            output.termination_reason,
-            output.steps,
-            output.tool_calls,
+            record.termination_reason,
+            record.steps,
+            record.tool_calls,
             latency,
         )
 
     runtime = time.perf_counter() - run_started
-    metrics = aggregate_hotpotqa_metrics(prediction_records, runtime=runtime)
+    metrics = evaluator.aggregate(records, runtime=runtime)
     write_metrics(active_artifacts, metrics)
-    _log_final_metrics(active_logger, metrics)
+    evaluator.log_final(active_logger, metrics)
     return BenchmarkRunResult(
         metrics=metrics,
-        predictions=tuple(prediction_records),
+        predictions=tuple(records),
         artifacts=active_artifacts,
+    )
+
+
+def run_hotpotqa_benchmark(
+    examples: Sequence[BenchmarkExample],
+    predictor: Predictor,
+    config: BenchmarkRunConfig,
+    *,
+    output_root: Path,
+    logger: logging.Logger | None = None,
+    artifacts: RunArtifacts | None = None,
+    show_trajectories: bool = False,
+) -> BenchmarkRunResult:
+    return run_benchmark(
+        examples,
+        predictor,
+        config,
+        evaluator=HotpotQAEvaluator(),
+        output_root=output_root,
+        logger=logger,
+        artifacts=artifacts,
+        show_trajectories=show_trajectories,
+    )
+
+
+def run_fever_benchmark(
+    examples: Sequence[BenchmarkExample],
+    predictor: Predictor,
+    config: BenchmarkRunConfig,
+    *,
+    output_root: Path,
+    logger: logging.Logger | None = None,
+    artifacts: RunArtifacts | None = None,
+    show_trajectories: bool = False,
+) -> BenchmarkRunResult:
+    return run_benchmark(
+        examples,
+        predictor,
+        config,
+        evaluator=FeverEvaluator(),
+        output_root=output_root,
+        logger=logger,
+        artifacts=artifacts,
+        show_trajectories=show_trajectories,
     )
 
 
@@ -292,8 +274,8 @@ def _predict_in_batches(
     *,
     batch_size: int,
     logger: logging.Logger,
+    input_name: str = "Question",
 ) -> Iterator[tuple[int, BenchmarkExample, AgentResult, float]]:
-    """Run ordered example chunks and report amortized wall time per example."""
     for batch_start in range(0, len(examples), batch_size):
         batch = examples[batch_start : batch_start + batch_size]
         batch_end = batch_start + len(batch)
@@ -305,13 +287,8 @@ def _predict_in_batches(
             len(batch),
         )
         for offset, example in enumerate(batch, start=batch_start + 1):
-            logger.info(
-                "[%d/%d] example_id=%s",
-                offset,
-                len(examples),
-                example.example_id,
-            )
-            logger.info("Question: %s", example.input_text)
+            logger.info("[%d/%d] example_id=%s", offset, len(examples), example.example_id)
+            logger.info("%s: %s", input_name, example.input_text)
 
         batch_started = time.perf_counter()
         batch_predict = getattr(predictor, "predict_batch", None)
@@ -337,56 +314,35 @@ def _predict_in_batches(
             yield index, example, output, amortized_latency
 
 
+def _log_trajectory(logger: logging.Logger, output: AgentResult) -> None:
+    for step in output.trajectory:
+        phase_suffix = f" [{step.phase}]" if step.phase else ""
+        logger.info("Step %d%s", step.step_index, phase_suffix)
+        if step.thought:
+            logger.info("Thought: %s", step.thought)
+        if step.action:
+            logger.info("Action: %s", step.action)
+        if step.observation:
+            logger.info("Observation: %s", step.observation)
+        logger.info("Model output: %s", step.model_output)
+
+
+def _log_agent_metadata(logger: logging.Logger, metadata: Mapping[str, Any]) -> None:
+    if not metadata:
+        return
+    if "winning_count" in metadata:
+        logger.info("Winning label: %s", metadata.get("winning_label") or "<EMPTY>")
+        logger.info(
+            "Winning count: %d/%d",
+            metadata["winning_count"],
+            metadata.get("cot_sc_samples", 0),
+        )
+        logger.info("Votes: %s", metadata.get("vote_distribution", {}))
+        if "execution_path" in metadata:
+            logger.info("Execution path: %s", metadata["execution_path"])
+        return
+    logger.info("Agent metadata: %s", dict(metadata))
+
+
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
-
-
-def _extract_supporting_facts(raw_value: Any) -> tuple[tuple[str, int], ...]:
-    """Normalize Hugging Face HotpotQA supporting facts into title/id pairs."""
-    if raw_value is None:
-        return ()
-    pairs: list[tuple[str, int]] = []
-    if isinstance(raw_value, Mapping):
-        titles = raw_value.get("title", ())
-        sentence_ids = raw_value.get("sent_id", ())
-        for title, sentence_id in zip(titles, sentence_ids, strict=False):
-            cleaned_title = str(title).strip()
-            parsed_sentence_id = int(sentence_id)
-            if cleaned_title and parsed_sentence_id >= 0:
-                pairs.append((cleaned_title, parsed_sentence_id))
-        return tuple(pairs)
-    if isinstance(raw_value, Sequence) and not isinstance(raw_value, (str, bytes)):
-        for item in raw_value:
-            if not isinstance(item, Sequence) or isinstance(item, (str, bytes)):
-                continue
-            if len(item) != 2:
-                continue
-            cleaned_title = str(item[0]).strip()
-            parsed_sentence_id = int(item[1])
-            if cleaned_title and parsed_sentence_id >= 0:
-                pairs.append((cleaned_title, parsed_sentence_id))
-    return tuple(pairs)
-
-
-def _log_final_metrics(logger: logging.Logger, metrics: BenchmarkMetrics) -> None:
-    """Stream every official and operational metric to stdout and run.log."""
-    logger.info("=== FINAL HOTPOTQA METRICS ===")
-    for name, value in metrics.official_hotpotqa_metrics().items():
-        logger.info("metric.%s=%.6f", name, value)
-    logger.info(
-        "metric.supporting_fact_prediction_coverage=%.6f",
-        metrics.supporting_fact_prediction_coverage,
-    )
-    logger.info("metric.total_examples=%d", metrics.total_examples)
-    logger.info("metric.correct=%d", metrics.correct)
-    logger.info("metric.incorrect=%d", metrics.incorrect)
-    logger.info("metric.average_steps=%.6f", metrics.average_steps)
-    logger.info("metric.average_tool_calls=%.6f", metrics.average_tool_calls)
-    logger.info("metric.runtime_seconds=%.6f", metrics.runtime)
-    logger.info("metric.termination_reasons=%s", dict(metrics.termination_reasons))
-    if metrics.supporting_fact_prediction_coverage == 0.0:
-        logger.warning(
-            "No supporting-fact pairs were predicted. Official sp_* and joint_* "
-            "metrics therefore score empty evidence predictions; no evidence was fabricated."
-        )
-    logger.info("=== END FINAL HOTPOTQA METRICS ===")

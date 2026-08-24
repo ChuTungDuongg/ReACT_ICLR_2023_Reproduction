@@ -55,9 +55,13 @@ def parse_explicit_final_answer(model_output: str) -> str:
 
 def parse_reasoning(model_output: str) -> str | None:
     match = _REASONING.search(model_output.strip())
-    if match is None:
+    if match is not None:
+        reasoning = match.group(1).strip()
+        return reasoning or None
+    answer_match = _FINAL_ANSWER.search(model_output.strip())
+    if answer_match is None:
         return None
-    reasoning = match.group(1).strip()
+    reasoning = model_output.strip()[: answer_match.start()].strip()
     return reasoning or None
 
 
@@ -110,4 +114,10 @@ def parse_thought(model_output: str) -> str | None:
 
 def parse_react_output(model_output: str) -> tuple[str | None, ToolAction]:
     """Parse one ReAct turn while tolerating an omitted Thought label."""
-    return parse_thought(model_output), parse_tool_action(model_output)
+    thought = parse_thought(model_output)
+    if thought is None:
+        action_match = _TOOL_ACTION.search(model_output.strip())
+        if action_match is not None:
+            implicit_thought = model_output.strip()[: action_match.start()].strip()
+            thought = implicit_thought or None
+    return thought, parse_tool_action(model_output)

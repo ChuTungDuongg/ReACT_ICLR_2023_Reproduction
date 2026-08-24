@@ -146,5 +146,5 @@ def test_act_batches_questions_with_independent_wikipedia_state() -> None:
     assert [result.prediction for result in results] == ["1879", "unknown"]
     assert [len(batch) for batch in llm.prompt_batches] == [2, 2]
     assert "Opened 'Albert Einstein'" in llm.prompt_batches[1][0]
-    assert "No Wikipedia article found" in llm.prompt_batches[1][1]
+    assert "Could not find [missing]" in llm.prompt_batches[1][1]
     assert len(created_environments) == 2

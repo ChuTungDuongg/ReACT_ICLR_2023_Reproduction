@@ -7,11 +7,17 @@ datasets:
     dataset_name: hotpotqa/hotpot_qa
     subset: distractor
     split: validation
+  fever:
+    dataset_name: ysymyth/ReAct
+    subset: paper_dev
+    split: dev
+    revision: 6bdb3a1fd38b8188fc7ba4102969fe483df8fdc9
 
 benchmark:
   num_samples: 10
   seed: 42
   max_agent_steps: 7
+  fever_max_agent_steps: 5
 
 generation:
   temperature: 0.0
