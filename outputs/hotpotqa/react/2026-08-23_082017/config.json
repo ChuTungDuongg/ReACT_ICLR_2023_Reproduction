@@ -1,0 +1,20 @@
+{
+  "code_version": "0.8.1",
+  "dataset": "hotpotqa/hotpot_qa:distractor:validation",
+  "device": "auto",
+  "generation": {
+    "max_new_tokens": 256,
+    "temperature": 0.0,
+    "top_p": 1.0
+  },
+  "max_agent_steps": 7,
+  "method": "react",
+  "method_settings": {
+    "react_best_effort_finalization": false
+  },
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "num_samples": 500,
+  "seed": 42,
+  "task": "hotpotqa",
+  "timestamp": "2026-08-23T08:20:17.868214+00:00"
+}

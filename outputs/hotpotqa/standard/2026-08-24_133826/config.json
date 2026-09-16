@@ -1,0 +1,19 @@
+{
+  "batch_size": 32,
+  "code_version": "0.10.0",
+  "dataset": "hotpotqa/hotpot_qa:distractor:validation",
+  "device": "auto",
+  "generation": {
+    "max_new_tokens": 256,
+    "temperature": 0.0,
+    "top_p": 1.0
+  },
+  "max_agent_steps": 7,
+  "method": "standard",
+  "method_settings": {},
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "num_samples": 500,
+  "seed": 42,
+  "task": "hotpotqa",
+  "timestamp": "2026-08-24T13:38:26.011503+00:00"
+}

@@ -32,6 +32,7 @@ outputs/*
 !outputs/.gitkeep
 !outputs/README.md
 !outputs/README.vi.md
+!outputs/hotpotqa/
 
 # Local ML data, caches, models, and checkpoints
 data/
@@ -48,6 +49,9 @@ mlruns/
 *.pt
 *.pth
 *.safetensors
+
+# Keep all HotpotQA benchmark outcomes, including run logs
+!outputs/hotpotqa/**
 
 # Notebook residue (not part of this workflow)
 .ipynb_checkpoints/

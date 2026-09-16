@@ -1,0 +1,38 @@
+{
+  "average_steps": 1.0,
+  "average_tool_calls": 0.0,
+  "correct": 108,
+  "exact_match": 0.216,
+  "f1": 0.30627771366003564,
+  "incorrect": 392,
+  "joint_exact_match": 0.0,
+  "joint_f1": 0.0,
+  "joint_precision": 0.0,
+  "joint_recall": 0.0,
+  "official_hotpotqa": {
+    "em": 0.216,
+    "f1": 0.30627771366003564,
+    "joint_em": 0.0,
+    "joint_f1": 0.0,
+    "joint_prec": 0.0,
+    "joint_recall": 0.0,
+    "prec": 0.31492259672694456,
+    "recall": 0.3231,
+    "sp_em": 0.0,
+    "sp_f1": 0.0,
+    "sp_prec": 0.0,
+    "sp_recall": 0.0
+  },
+  "precision": 0.31492259672694456,
+  "recall": 0.3231,
+  "runtime": 146.2976551640004,
+  "supporting_fact_exact_match": 0.0,
+  "supporting_fact_f1": 0.0,
+  "supporting_fact_precision": 0.0,
+  "supporting_fact_prediction_coverage": 0.0,
+  "supporting_fact_recall": 0.0,
+  "termination_reasons": {
+    "completed": 500
+  },
+  "total_examples": 500
+}

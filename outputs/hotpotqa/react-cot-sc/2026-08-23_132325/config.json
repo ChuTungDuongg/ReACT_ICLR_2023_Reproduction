@@ -1,0 +1,24 @@
+{
+  "batch_size": 8,
+  "code_version": "0.9.0",
+  "dataset": "hotpotqa/hotpot_qa:distractor:validation",
+  "device": "auto",
+  "generation": {
+    "max_new_tokens": 256,
+    "temperature": 0.0,
+    "top_p": 1.0
+  },
+  "max_agent_steps": 7,
+  "method": "react-cot-sc",
+  "method_settings": {
+    "cot_sc_fallback_threshold": 10.5,
+    "cot_sc_samples": 21,
+    "cot_sc_temperature": 0.7,
+    "react_best_effort_finalization": false
+  },
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "num_samples": 500,
+  "seed": 42,
+  "task": "hotpotqa",
+  "timestamp": "2026-08-23T13:23:25.513708+00:00"
+}
