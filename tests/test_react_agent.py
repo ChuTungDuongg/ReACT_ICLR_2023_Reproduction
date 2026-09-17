@@ -82,13 +82,14 @@ def test_react_agent_reasons_searches_looks_up_and_finishes() -> None:
 
 
 def test_react_agent_recovers_from_one_parsing_error() -> None:
+    llm = ScriptedLLM(
+        [
+            "Thought: I need evidence, but no action follows.",
+            "Finish[1879]",
+        ]
+    )
     agent = ReActAgent(
-        ScriptedLLM(
-            [
-                "Thought: I need evidence, but no action follows.",
-                "Thought: I can now answer.\nAction: Finish[1879]",
-            ]
-        ),
+        llm,
         GenerationConfig(max_new_tokens=32),
         WikipediaEnvironment(FakeWikipediaClient(), max_steps=3),
         max_steps=3,
@@ -97,9 +98,13 @@ def test_react_agent_recovers_from_one_parsing_error() -> None:
     result = agent.predict(BenchmarkExample("1", "When?", "1879"))
 
     assert result.prediction == "1879"
-    assert result.steps == 2
+    assert result.steps == 1
     assert result.trajectory[0].thought == "I need evidence, but no action follows."
-    assert "Invalid action format" in (result.trajectory[0].observation or "")
+    assert result.trajectory[0].action == "Finish[1879]"
+    assert "Invalid action format" not in (result.trajectory[0].observation or "")
+    assert llm.prompts[1].endswith(
+        "Thought 1: I need evidence, but no action follows.\nAction 1:"
+    )
 
 
 def test_react_agent_rejects_tool_action_on_forced_final_step() -> None:

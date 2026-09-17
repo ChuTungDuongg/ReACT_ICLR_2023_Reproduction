@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
@@ -10,6 +11,7 @@ from react_reproduction.agents.parsing import (
     ActionParseError,
     parse_react_output,
     parse_thought,
+    parse_tool_action,
 )
 from react_reproduction.config import GenerationConfig
 from react_reproduction.datasets.base import BenchmarkExample
@@ -35,6 +37,14 @@ class _ReActState:
     last_parse_failed: bool = False
     pending_termination_reason: str | None = None
     result: AgentResult | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class _ReActTurn:
+    model_output: str
+    thought: str | None
+    action: ToolAction | None = None
+    parse_error: ActionParseError | None = None
 
 
 class ReActAgent(BaseAgent):
@@ -133,19 +143,89 @@ class ReActAgent(BaseAgent):
                     "LLM batch output count does not match active ReAct states: "
                     f"{len(model_outputs)} != {len(active_states)}."
                 )
-            for state, model_output, force_finish in zip(
-                active_states,
-                model_outputs,
-                force_finish_flags,
-                strict=True,
-            ):
+            turns: list[_ReActTurn] = []
+            recovery_indexes: list[int] = []
+            for active_index, model_output in enumerate(model_outputs):
                 model_output = truncate_at_stop_sequences(
                     model_output,
                     (f"\nObservation {step_index}:",),
                 )
+                try:
+                    thought, action = parse_react_output(model_output)
+                except ActionParseError as error:
+                    turns.append(
+                        _ReActTurn(
+                            model_output=model_output,
+                            thought=self._recover_thought(model_output),
+                            parse_error=error,
+                        )
+                    )
+                    recovery_indexes.append(active_index)
+                else:
+                    turns.append(
+                        _ReActTurn(
+                            model_output=model_output,
+                            thought=thought,
+                            action=action,
+                        )
+                    )
+
+            if recovery_indexes:
+                recovery_prompts = [
+                    self._build_action_recovery_prompt(
+                        prompts[index],
+                        turns[index].thought,
+                        step_index,
+                    )
+                    for index in recovery_indexes
+                ]
+                recovery_outputs = generate_batch_with_stops(
+                    self._llm,
+                    recovery_prompts,
+                    temperature=self._generation.temperature,
+                    top_p=self._generation.top_p,
+                    max_new_tokens=self._generation.max_new_tokens,
+                    stop_sequences=("\n",),
+                )
+                if len(recovery_outputs) != len(recovery_indexes):
+                    raise RuntimeError(
+                        "LLM batch output count does not match ReAct recovery "
+                        f"states: {len(recovery_outputs)} != "
+                        f"{len(recovery_indexes)}."
+                    )
+                for active_index, recovery_output in zip(
+                    recovery_indexes,
+                    recovery_outputs,
+                    strict=True,
+                ):
+                    recovery_output = truncate_at_stop_sequences(
+                        recovery_output,
+                        ("\n",),
+                    )
+                    try:
+                        action = parse_tool_action(recovery_output)
+                    except ActionParseError as error:
+                        turns[active_index] = _ReActTurn(
+                            model_output=recovery_output,
+                            thought=turns[active_index].thought,
+                            parse_error=error,
+                        )
+                    else:
+                        turns[active_index] = _ReActTurn(
+                            model_output=recovery_output,
+                            thought=turns[active_index].thought,
+                            action=action,
+                        )
+
+            for state, turn, force_finish in zip(
+                active_states,
+                turns,
+                force_finish_flags,
+                strict=True,
+            ):
                 self._advance_state(
                     state,
-                    model_output,
+                    turn,
                     step_index=step_index,
                     force_finish=force_finish,
                 )
@@ -173,21 +253,19 @@ class ReActAgent(BaseAgent):
     def _advance_state(
         self,
         state: _ReActState,
-        model_output: str,
+        turn: _ReActTurn,
         *,
         step_index: int,
         force_finish: bool,
     ) -> None:
-        try:
-            thought, action = parse_react_output(model_output)
-        except ActionParseError as error:
+        if turn.parse_error is not None:
             state.last_parse_failed = True
             state.trajectory.append(
                 TrajectoryStep(
                     step_index=step_index,
-                    model_output=model_output,
-                    thought=parse_thought(model_output),
-                    observation=f"Invalid action format: {error}",
+                    model_output=turn.model_output,
+                    thought=turn.thought,
+                    observation=f"Invalid action format: {turn.parse_error}",
                 )
             )
             if force_finish:
@@ -200,19 +278,27 @@ class ReActAgent(BaseAgent):
                 )
             return
 
+        if turn.action is None:
+            raise RuntimeError("Parsed ReAct turn is missing its action.")
         state.last_parse_failed = False
         if force_finish:
-            self._finish_forced_step(state, model_output, thought, action, step_index)
+            self._finish_forced_step(
+                state,
+                turn.model_output,
+                turn.thought,
+                turn.action,
+                step_index,
+            )
             return
 
-        execution = state.environment.execute(action)
+        execution = state.environment.execute(turn.action)
         state.tool_calls += int(execution.tool_called)
         state.trajectory.append(
             TrajectoryStep(
                 step_index=step_index,
-                model_output=model_output,
-                thought=thought,
-                action=action.canonical,
+                model_output=turn.model_output,
+                thought=turn.thought,
+                action=turn.action.canonical,
                 observation=execution.observation,
             )
         )
@@ -251,6 +337,40 @@ class ReActAgent(BaseAgent):
             tool_calls=state.tool_calls,
             termination_reason=(execution.termination_reason or "terminated"),
             trajectory=tuple(state.trajectory),
+        )
+
+    @staticmethod
+    def _recover_thought(model_output: str) -> str | None:
+        """Recover the first usable reasoning line, matching the paper code."""
+        explicit = parse_thought(model_output)
+        candidates = explicit.splitlines() if explicit else model_output.splitlines()
+        for line in candidates:
+            candidate = line.strip()
+            if not candidate:
+                continue
+            if re.match(
+                r"^(?:action|observation)(?:\s+\d+)?\s*:",
+                candidate,
+                flags=re.IGNORECASE,
+            ):
+                return None
+            return candidate
+        return None
+
+    @staticmethod
+    def _build_action_recovery_prompt(
+        prompt: str,
+        thought: str | None,
+        step_index: int,
+    ) -> str:
+        thought_label = f"Thought {step_index}:"
+        if re.search(rf"{re.escape(thought_label)}\s*$", prompt):
+            rendered_thought = f" {thought}" if thought else ""
+            return f"{prompt}{rendered_thought}\nAction {step_index}:"
+        rendered_thought = f" {thought}" if thought else ""
+        return (
+            f"{prompt}\n{thought_label}{rendered_thought}\n"
+            f"Action {step_index}:"
         )
 
     def _finish_forced_step(

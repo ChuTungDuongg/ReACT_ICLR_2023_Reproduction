@@ -372,6 +372,180 @@ def test_fever_react_stops_before_model_generated_observation() -> None:
     ]
 
 
+def test_fever_react_recovers_malformed_action_within_the_same_step() -> None:
+    llm = BatchLLM(
+        [
+            [
+                "Thought 1: The evidence is sufficient.\n"
+                "Action 1: Therefore I should reject the claim."
+            ],
+            ["Finish[REFUTES]\nObservation 1: FABRICATED MODEL OBSERVATION"],
+        ]
+    )
+    agent = ReActAgent(
+        llm,
+        GenerationConfig(),
+        WikipediaEnvironment(FakeWikipediaClient(), max_steps=5),
+        max_steps=5,
+        prompt_builder=build_react_prompt,
+        answer_normalizer=normalize_fever_label,
+    )
+
+    result = agent.predict(EXAMPLE)
+
+    assert result.prediction == "REFUTES"
+    assert result.termination_reason == "completed"
+    assert result.steps == 1
+    assert result.tool_calls == 0
+    assert len(result.trajectory) == 1
+    assert result.trajectory[0].thought == "The evidence is sufficient."
+    assert result.trajectory[0].action == "Finish[REFUTES]"
+    assert "FABRICATED MODEL OBSERVATION" not in result.trajectory[0].model_output
+    assert llm.prompt_batches[1][0].endswith(
+        "Thought 1: The evidence is sufficient.\nAction 1:"
+    )
+    assert llm.stop_sequences == [("\nObservation 1:",), ("\n",)]
+
+
+def test_fever_react_recovery_uses_unlabeled_first_reasoning_line() -> None:
+    llm = BatchLLM(
+        [
+            ["The evidence is sufficient.\nAction 1: This is malformed prose."],
+            ["Finish[REFUTES]"],
+        ]
+    )
+    agent = ReActAgent(
+        llm,
+        GenerationConfig(),
+        WikipediaEnvironment(FakeWikipediaClient(), max_steps=5),
+        max_steps=5,
+        prompt_builder=build_react_prompt,
+        answer_normalizer=normalize_fever_label,
+    )
+
+    result = agent.predict(EXAMPLE)
+
+    assert result.prediction == "REFUTES"
+    assert result.steps == 1
+    assert result.trajectory[0].thought == "The evidence is sufficient."
+    assert llm.prompt_batches[1][0].endswith(
+        "Thought 1: The evidence is sufficient.\nAction 1:"
+    )
+
+
+def test_fever_react_recovered_search_feeds_real_observation_to_next_step() -> None:
+    llm = BatchLLM(
+        [
+            [
+                "Thought 1: I should verify the university.\n"
+                "Action 1: I will search for the university."
+            ],
+            ["Search[Peking University]"],
+            ["Thought 2: It was founded in 1898.\nAction 2: Finish[REFUTES]"],
+        ]
+    )
+    agent = ReActAgent(
+        llm,
+        GenerationConfig(),
+        WikipediaEnvironment(FakeWikipediaClient(), max_steps=5),
+        max_steps=5,
+        prompt_builder=build_react_prompt,
+        answer_normalizer=normalize_fever_label,
+    )
+
+    result = agent.predict(EXAMPLE)
+
+    assert result.prediction == "REFUTES"
+    assert result.steps == 2
+    assert result.tool_calls == 1
+    assert len(result.trajectory) == 2
+    assert result.trajectory[0].action == "Search[Peking University]"
+    assert "Opened top result 'Albert Einstein'" in llm.prompt_batches[2][0]
+    assert "I will search for the university" not in llm.prompt_batches[2][0]
+    assert llm.stop_sequences == [
+        ("\nObservation 1:",),
+        ("\n",),
+        ("\nObservation 2:",),
+    ]
+
+
+def test_fever_react_failed_recovery_consumes_one_logical_step_only() -> None:
+    llm = BatchLLM(
+        [
+            ["Thought 1: I need evidence.\nAction 1: This is malformed prose."],
+            ["This is still not a tool action.\nThought 2: Do not continue."],
+        ]
+    )
+    agent = ReActAgent(
+        llm,
+        GenerationConfig(),
+        WikipediaEnvironment(FakeWikipediaClient(), max_steps=5),
+        max_steps=1,
+        prompt_builder=build_react_prompt,
+        answer_normalizer=normalize_fever_label,
+    )
+
+    result = agent.predict(EXAMPLE)
+
+    assert result.prediction == ""
+    assert result.termination_reason == "parsing_error"
+    assert result.steps == 1
+    assert result.tool_calls == 0
+    assert len(result.trajectory) == 1
+    assert result.trajectory[0].action is None
+    assert "Invalid action format" in (result.trajectory[0].observation or "")
+    assert llm.batch_sizes == [1, 1]
+    assert llm.stop_sequences == [("\nObservation 1:",), ("\n",)]
+
+
+def test_fever_react_mixed_batch_recovers_only_the_failed_state() -> None:
+    llm = BatchLLM(
+        [
+            [
+                "Thought 1: Search normally.\nAction 1: Search[Albert Einstein]",
+                "Thought 1: The claim is contradicted.\n"
+                "Action 1: Therefore I should reject it.",
+            ],
+            ["Finish[REFUTES]"],
+            ["Thought 2: The page is sufficient.\nAction 2: Finish[SUPPORTS]"],
+        ]
+    )
+    created: list[WikipediaEnvironment] = []
+
+    def factory() -> WikipediaEnvironment:
+        environment = WikipediaEnvironment(FakeWikipediaClient(), max_steps=5)
+        created.append(environment)
+        return environment
+
+    agent = ReActAgent(
+        llm,
+        GenerationConfig(),
+        factory(),
+        max_steps=5,
+        environment_factory=factory,
+        prompt_builder=build_react_prompt,
+        answer_normalizer=normalize_fever_label,
+    )
+    examples = [
+        EXAMPLE,
+        BenchmarkExample("fever-2", "A contradicted claim.", "REFUTES"),
+    ]
+
+    results = agent.predict_batch(examples)
+
+    assert [result.prediction for result in results] == ["SUPPORTS", "REFUTES"]
+    assert [result.steps for result in results] == [2, 1]
+    assert [result.tool_calls for result in results] == [1, 0]
+    assert llm.batch_sizes == [2, 1, 1]
+    assert "A contradicted claim." in llm.prompt_batches[1][0]
+    assert "A verifiable claim." not in llm.prompt_batches[1][0]
+    assert llm.prompt_batches[1][0].endswith(
+        "Thought 1: The claim is contradicted.\nAction 1:"
+    )
+    assert "Opened 'Albert Einstein'" in llm.prompt_batches[2][0]
+    assert len(created) == 2
+
+
 def test_fever_act_generation_executes_only_the_current_action() -> None:
     llm = BatchLLM(
         [
