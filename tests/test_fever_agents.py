@@ -34,6 +34,7 @@ class BatchLLM(LLMProvider):
         self.temperatures: list[float] = []
         self.batch_sizes: list[int] = []
         self.prompt_batches: list[list[str]] = []
+        self.stop_sequences: list[tuple[str, ...] | None] = []
 
     def generate(
         self,
@@ -42,12 +43,14 @@ class BatchLLM(LLMProvider):
         temperature: float,
         top_p: float,
         max_new_tokens: int,
+        stop_sequences: list[str] | tuple[str, ...] | None = None,
     ) -> str:
         return self.generate_batch(
             [prompt],
             temperature=temperature,
             top_p=top_p,
             max_new_tokens=max_new_tokens,
+            stop_sequences=stop_sequences,
         )[0]
 
     def generate_batch(
@@ -57,13 +60,28 @@ class BatchLLM(LLMProvider):
         temperature: float,
         top_p: float,
         max_new_tokens: int,
+        stop_sequences: list[str] | tuple[str, ...] | None = None,
     ) -> tuple[str, ...]:
         self.temperatures.append(temperature)
         self.batch_sizes.append(len(prompts))
         self.prompt_batches.append(list(prompts))
+        normalized_stops = (
+            tuple(stop_sequences) if stop_sequences is not None else None
+        )
+        self.stop_sequences.append(normalized_stops)
         result = next(self._batches)
         assert len(result) == len(prompts)
-        return tuple(result)
+        if not normalized_stops:
+            return tuple(result)
+        truncated: list[str] = []
+        for output in result:
+            stop_indexes = [
+                output.find(stop)
+                for stop in normalized_stops
+                if output.find(stop) >= 0
+            ]
+            truncated.append(output[: min(stop_indexes)] if stop_indexes else output)
+        return tuple(truncated)
 
 
 class StaticAgent(BaseAgent):
@@ -105,6 +123,24 @@ def test_standard_and_cot_reuse_shared_agents_with_fever_adapters() -> None:
 
     assert standard.predict(EXAMPLE).prediction == "SUPPORTS"
     assert cot.predict(EXAMPLE).prediction == "REFUTES"
+
+
+def test_fever_standard_stops_after_the_first_answer_line() -> None:
+    llm = BatchLLM([["REFUTES\nThis explanation should not be generated."]])
+    agent = StandardAgent(
+        llm,
+        GenerationConfig(),
+        prompt_builder=build_standard_prompt,
+        answer_parser=parse_fever_label,
+        invalid_termination_reason="invalid_label",
+        stop_sequences=("\n",),
+    )
+
+    result = agent.predict(EXAMPLE)
+
+    assert result.prediction == "REFUTES"
+    assert result.trajectory[0].model_output == "REFUTES"
+    assert llm.stop_sequences == [("\n",)]
 
 
 @pytest.mark.parametrize("label", ["SUPPORTS", "REFUTES", "NOT ENOUGH INFO"])
@@ -167,6 +203,38 @@ def test_cot_sc_generates_exactly_21_samples_at_temperature_point_7() -> None:
     }
     assert outcome.result.termination_reason == "cot_sc_majority"
     assert agent._llm.temperatures == [0.7] * 21
+
+
+def test_cot_sc_counts_safe_fever_variants_and_discards_ambiguous_votes() -> None:
+    outputs = [
+        "Answer: REFUTES",
+        "Answer: REFUTES.",
+        "Answer: REFUTES (the evidence contradicts the claim)",
+        "Answer: SUPPORTS (the evidence confirms the claim)",
+        "Answer: NOT ENOUGH INFO (the evidence is insufficient)",
+        "Answer: REFUTES or NOT ENOUGH INFO",
+        "Answer: SUPPORTS / REFUTES",
+    ]
+
+    outcome = _fever_cot_sc(outputs).predict_with_consensus(EXAMPLE)
+
+    assert outcome.valid_answer_count == 5
+    assert outcome.winning_count == 3
+    assert outcome.result.prediction == "REFUTES"
+    assert outcome.result.metadata["vote_distribution"] == {
+        "REFUTES": 3,
+        "SUPPORTS": 1,
+        "NOT ENOUGH INFO": 1,
+    }
+    assert outcome.result.metadata["cot_sc_normalized_labels"] == [
+        "REFUTES",
+        "REFUTES",
+        "REFUTES",
+        "SUPPORTS",
+        "NOT ENOUGH INFO",
+        "",
+        "",
+    ]
 
 
 def test_cot_sc_low_vote_winner_is_recorded_as_plurality() -> None:
@@ -265,6 +333,76 @@ def test_fever_react_batch_state_is_isolated() -> None:
     assert "Opened 'Albert Einstein'" in llm.prompt_batches[1][0]
     assert "Could not find [missing]" in llm.prompt_batches[1][1]
     assert len(created) == 2
+
+
+def test_fever_react_stops_before_model_generated_observation() -> None:
+    llm = BatchLLM(
+        [
+            [
+                "Thought 1: Search for the entity.\n"
+                "Action 1: Search[Albert Einstein]\n"
+                "Observation 1: FABRICATED MODEL OBSERVATION\n"
+                "Thought 2: Finish immediately.\n"
+                "Action 2: Finish[REFUTES]"
+            ],
+            ["Thought 2: The real evidence supports it.\nAction 2: Finish[SUPPORTS]"],
+        ]
+    )
+    agent = ReActAgent(
+        llm,
+        GenerationConfig(),
+        WikipediaEnvironment(FakeWikipediaClient(), max_steps=5),
+        max_steps=5,
+        prompt_builder=build_react_prompt,
+        answer_normalizer=normalize_fever_label,
+    )
+
+    result = agent.predict(EXAMPLE)
+
+    assert result.prediction == "SUPPORTS"
+    assert result.tool_calls == 1
+    assert result.trajectory[0].model_output.endswith(
+        "Action 1: Search[Albert Einstein]"
+    )
+    assert "FABRICATED MODEL OBSERVATION" not in llm.prompt_batches[1][0]
+    assert "Opened 'Albert Einstein'" in llm.prompt_batches[1][0]
+    assert llm.stop_sequences == [
+        ("\nObservation 1:",),
+        ("\nObservation 2:",),
+    ]
+
+
+def test_fever_act_generation_executes_only_the_current_action() -> None:
+    llm = BatchLLM(
+        [
+            [
+                "Action 1: Search[Albert Einstein]\n"
+                "Observation 1: FABRICATED MODEL OBSERVATION\n"
+                "Action 2: Finish[REFUTES]"
+            ],
+            ["Action 2: Finish[SUPPORTS]"],
+        ]
+    )
+    agent = ActOnlyAgent(
+        llm,
+        GenerationConfig(),
+        WikipediaEnvironment(FakeWikipediaClient(), max_steps=5),
+        max_steps=5,
+        prompt_builder=build_act_prompt,
+        answer_normalizer=normalize_fever_label,
+    )
+
+    result = agent.predict(EXAMPLE)
+
+    assert result.prediction == "SUPPORTS"
+    assert result.tool_calls == 1
+    assert result.trajectory[0].model_output == "Action 1: Search[Albert Einstein]"
+    assert "FABRICATED MODEL OBSERVATION" not in llm.prompt_batches[1][0]
+    assert "Opened 'Albert Einstein'" in llm.prompt_batches[1][0]
+    assert llm.stop_sequences == [
+        ("\nObservation 1:",),
+        ("\nObservation 2:",),
+    ]
 
 
 def test_all_seven_fever_methods_run_a_three_claim_mock_batch() -> None:

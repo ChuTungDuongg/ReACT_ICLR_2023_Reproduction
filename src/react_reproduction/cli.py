@@ -351,6 +351,7 @@ def _run_benchmark(
             invalid_termination_reason=(
                 "invalid_label" if args.task == "fever" else "parsing_error"
             ),
+            stop_sequences=("\n",) if args.task == "fever" else None,
         )
     elif args.method == "cot":
         from react_reproduction.agents.cot import CoTAgent

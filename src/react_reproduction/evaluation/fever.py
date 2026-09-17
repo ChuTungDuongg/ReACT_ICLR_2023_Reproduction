@@ -32,6 +32,15 @@ _SURFACE_FORMS = {
     "not enough information": "NOT ENOUGH INFO",
     "insufficient information": "NOT ENOUGH INFO",
 }
+_SURFACE_PATTERN = re.compile(
+    r"^(?:"
+    + "|".join(
+        re.escape(surface)
+        for surface in sorted(_SURFACE_FORMS, key=len, reverse=True)
+    )
+    + r")(?=$|[\s.,;:!?(])",
+    flags=re.IGNORECASE,
+)
 
 
 def normalize_fever_label(value: str) -> str:
@@ -46,12 +55,55 @@ def parse_fever_label(model_output: str) -> str:
     non_empty = [line.strip() for line in model_output.splitlines() if line.strip()]
     if not non_empty:
         return ""
-    for line in reversed(non_empty):
-        match = _ANSWER_PREFIX.match(line)
-        if match is not None:
-            return normalize_fever_label(match.group(1))
-    if len(non_empty) == 1:
-        return normalize_fever_label(non_empty[0])
+    answer_payloads = [
+        match.group(1)
+        for line in non_empty
+        if (match := _ANSWER_PREFIX.match(line)) is not None
+    ]
+    if answer_payloads:
+        parsed = [_parse_fever_answer_payload(payload) for payload in answer_payloads]
+        if all(parsed) and len(set(parsed)) == 1:
+            return parsed[0]
+        return ""
+
+    first_line_label = normalize_fever_label(non_empty[0])
+    if not first_line_label:
+        return ""
+    for line in non_empty[1:]:
+        repeated_label = normalize_fever_label(line)
+        if repeated_label and repeated_label != first_line_label:
+            return ""
+        if re.match(r"^(?:or|alternatively|/)\s+", line, flags=re.IGNORECASE):
+            if _parse_fever_answer_payload(
+                re.sub(
+                    r"^(?:or|alternatively|/)\s+",
+                    "",
+                    line,
+                    flags=re.IGNORECASE,
+                )
+            ):
+                return ""
+    return first_line_label
+
+
+def _parse_fever_answer_payload(payload: str) -> str:
+    """Accept a leading FEVER label with only punctuation or parenthetical prose."""
+    stripped = payload.strip()
+    match = _SURFACE_PATTERN.match(stripped)
+    if match is None:
+        return ""
+    label = normalize_fever_label(match.group(0))
+    suffix = stripped[match.end() :].strip()
+    if not suffix or not suffix.strip(".!,;:"):
+        return label
+    if suffix.startswith("(") and suffix.endswith(")"):
+        inner = suffix[1:-1].strip()
+        if inner and not re.search(
+            r"(?:\bor\b|/)\s*(?:supports|refutes|not\s+enough\s+info(?:rmation)?)\b",
+            inner,
+            flags=re.IGNORECASE,
+        ):
+            return label
     return ""
 
 

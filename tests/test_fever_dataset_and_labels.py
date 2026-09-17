@@ -51,6 +51,40 @@ def test_parse_fever_label_requires_explicit_answer_for_multiline_output() -> No
     assert parse_fever_label("Thought: maybe supports.\nNo final label") == ""
 
 
+@pytest.mark.parametrize(
+    ("output", "expected"),
+    [
+        ("REFUTES\nThe retrieved evidence contradicts the claim.", "REFUTES"),
+        ("Answer: REFUTES", "REFUTES"),
+        ("Answer: REFUTES.", "REFUTES"),
+        ("Answer: REFUTES (the evidence contradicts the claim)", "REFUTES"),
+        ("Answer: SUPPORTS (the evidence confirms the claim)", "SUPPORTS"),
+        (
+            "Answer: NOT ENOUGH INFO (the evidence is insufficient)",
+            "NOT ENOUGH INFO",
+        ),
+    ],
+)
+def test_parse_fever_label_accepts_safe_instruction_model_commentary(
+    output: str,
+    expected: str,
+) -> None:
+    assert parse_fever_label(output) == expected
+
+
+@pytest.mark.parametrize(
+    "output",
+    [
+        "REFUTES or NOT ENOUGH INFO\nThe model is uncertain.",
+        "Answer: REFUTES or NOT ENOUGH INFO",
+        "Answer: SUPPORTS / REFUTES",
+        "probably REFUTES",
+    ],
+)
+def test_parse_fever_label_rejects_competing_or_unselected_labels(output: str) -> None:
+    assert parse_fever_label(output) == ""
+
+
 def test_fever_sampling_is_deterministic_and_claim_only() -> None:
     records = [
         {

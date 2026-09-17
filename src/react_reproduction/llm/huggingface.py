@@ -7,7 +7,11 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from react_reproduction.llm.base import LLMProvider
+from react_reproduction.llm.base import (
+    LLMProvider,
+    normalize_stop_sequences,
+    truncate_at_stop_sequences,
+)
 
 
 LOGGER = logging.getLogger("react_reproduction.llm.huggingface")
@@ -84,33 +88,34 @@ class HuggingFaceProvider(LLMProvider):
         temperature: float,
         top_p: float,
         max_new_tokens: int,
+        stop_sequences: Sequence[str] | None = None,
     ) -> str:
-        if not prompt.strip():
-            raise ValueError("prompt cannot be empty.")
-        if temperature < 0:
-            raise ValueError("temperature cannot be negative.")
-        if not 0.0 <= top_p <= 1.0:
-            raise ValueError("top_p must be between 0.0 and 1.0.")
-        if max_new_tokens <= 0:
-            raise ValueError("max_new_tokens must be positive.")
+        self._validate_generation_request(
+            (prompt,),
+            temperature=temperature,
+            top_p=top_p,
+            max_new_tokens=max_new_tokens,
+        )
+        stops = normalize_stop_sequences(stop_sequences)
 
         model_inputs = self._prepare_inputs(prompt)
         input_length = model_inputs["input_ids"].shape[-1]
-        pad_token_id = self.tokenizer.pad_token_id
-        if pad_token_id is None:
-            pad_token_id = self.tokenizer.eos_token_id
-        generate_kwargs: dict[str, Any] = {
-            "max_new_tokens": max_new_tokens,
-            "do_sample": temperature > 0.0,
-            "pad_token_id": pad_token_id,
-        }
-        if temperature > 0.0:
-            generate_kwargs.update(temperature=temperature, top_p=top_p)
+        generate_kwargs = self._generation_kwargs(
+            temperature=temperature,
+            top_p=top_p,
+            max_new_tokens=max_new_tokens,
+            stop_sequences=stops,
+            input_length=input_length,
+        )
 
         with self._torch.inference_mode():
             output_ids = self.model.generate(**model_inputs, **generate_kwargs)
         completion_ids = output_ids[0, input_length:]
-        return self.tokenizer.decode(completion_ids, skip_special_tokens=True).strip()
+        completion = self.tokenizer.decode(
+            completion_ids,
+            skip_special_tokens=True,
+        )
+        return truncate_at_stop_sequences(completion, stops).strip()
 
     def generate_batch(
         self,
@@ -119,11 +124,50 @@ class HuggingFaceProvider(LLMProvider):
         temperature: float,
         top_p: float,
         max_new_tokens: int,
+        stop_sequences: Sequence[str] | None = None,
     ) -> tuple[str, ...]:
         if not prompts:
             return ()
+        self._validate_generation_request(
+            prompts,
+            temperature=temperature,
+            top_p=top_p,
+            max_new_tokens=max_new_tokens,
+        )
+        stops = normalize_stop_sequences(stop_sequences)
+
+        model_inputs = self._prepare_batch_inputs(prompts)
+        input_length = model_inputs["input_ids"].shape[-1]
+        generate_kwargs = self._generation_kwargs(
+            temperature=temperature,
+            top_p=top_p,
+            max_new_tokens=max_new_tokens,
+            stop_sequences=stops,
+            input_length=input_length,
+        )
+
+        with self._torch.inference_mode():
+            output_ids = self.model.generate(**model_inputs, **generate_kwargs)
+        completions = output_ids[:, input_length:]
+        decoded = self.tokenizer.batch_decode(
+            completions,
+            skip_special_tokens=True,
+        )
+        return tuple(
+            truncate_at_stop_sequences(text, stops).strip() for text in decoded
+        )
+
+    @staticmethod
+    def _validate_generation_request(
+        prompts: Sequence[str],
+        *,
+        temperature: float,
+        top_p: float,
+        max_new_tokens: int,
+    ) -> None:
         if any(not prompt.strip() for prompt in prompts):
-            raise ValueError("prompts cannot contain an empty prompt.")
+            noun = "prompt" if len(prompts) == 1 else "prompts"
+            raise ValueError(f"{noun} cannot contain an empty prompt.")
         if temperature < 0:
             raise ValueError("temperature cannot be negative.")
         if not 0.0 <= top_p <= 1.0:
@@ -131,25 +175,59 @@ class HuggingFaceProvider(LLMProvider):
         if max_new_tokens <= 0:
             raise ValueError("max_new_tokens must be positive.")
 
-        model_inputs = self._prepare_batch_inputs(prompts)
-        input_length = model_inputs["input_ids"].shape[-1]
-        generate_kwargs: dict[str, Any] = {
+    def _generation_kwargs(
+        self,
+        *,
+        temperature: float,
+        top_p: float,
+        max_new_tokens: int,
+        stop_sequences: tuple[str, ...],
+        input_length: int,
+    ) -> dict[str, Any]:
+        pad_token_id = self.tokenizer.pad_token_id
+        if pad_token_id is None:
+            pad_token_id = self.tokenizer.eos_token_id
+        kwargs: dict[str, Any] = {
             "max_new_tokens": max_new_tokens,
             "do_sample": temperature > 0.0,
-            "pad_token_id": self.tokenizer.pad_token_id,
+            "pad_token_id": pad_token_id,
         }
         if temperature > 0.0:
-            generate_kwargs.update(temperature=temperature, top_p=top_p)
+            kwargs.update(temperature=temperature, top_p=top_p)
+        stopping_criteria = self._stopping_criteria(stop_sequences, input_length)
+        if stopping_criteria is not None:
+            kwargs["stopping_criteria"] = stopping_criteria
+        return kwargs
 
-        with self._torch.inference_mode():
-            output_ids = self.model.generate(**model_inputs, **generate_kwargs)
-        completions = output_ids[:, input_length:]
-        return tuple(
-            text.strip()
-            for text in self.tokenizer.batch_decode(
-                completions,
-                skip_special_tokens=True,
+    def _stopping_criteria(
+        self,
+        stop_sequences: tuple[str, ...],
+        input_length: int,
+    ) -> Any | None:
+        if not stop_sequences:
+            return None
+        from transformers import StoppingCriteriaList
+
+        token_sequences = tuple(
+            tuple(
+                self.tokenizer.encode(
+                    stop,
+                    add_special_tokens=False,
+                )
             )
+            for stop in stop_sequences
+        )
+        token_sequences = tuple(tokens for tokens in token_sequences if tokens)
+        if not token_sequences:
+            return None
+        return StoppingCriteriaList(
+            [
+                _StopOnTokenSequences(
+                    token_sequences,
+                    input_length=input_length,
+                    torch_module=self._torch,
+                )
+            ]
         )
 
     @property
@@ -232,3 +310,37 @@ def _preferred_dtype(device: str, torch_module: Any) -> Any:
     if device == "mps":
         return torch_module.float16
     return torch_module.float32
+
+
+class _StopOnTokenSequences:
+    """Stop each generated row once it ends with any configured token sequence."""
+
+    def __init__(
+        self,
+        token_sequences: tuple[tuple[int, ...], ...],
+        *,
+        input_length: int,
+        torch_module: Any,
+    ) -> None:
+        self._token_sequences = token_sequences
+        self._input_length = input_length
+        self._torch = torch_module
+
+    def __call__(self, input_ids: Any, scores: Any, **kwargs: Any) -> Any:
+        del scores, kwargs
+        generated = input_ids[:, self._input_length :]
+        stopped = []
+        for row in generated:
+            row_tokens = row.tolist()
+            stopped.append(
+                any(
+                    len(row_tokens) >= len(stop)
+                    and tuple(row_tokens[-len(stop) :]) == stop
+                    for stop in self._token_sequences
+                )
+            )
+        return self._torch.tensor(
+            stopped,
+            device=input_ids.device,
+            dtype=self._torch.bool,
+        )

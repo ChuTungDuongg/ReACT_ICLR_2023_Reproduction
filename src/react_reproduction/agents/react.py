@@ -13,7 +13,11 @@ from react_reproduction.agents.parsing import (
 )
 from react_reproduction.config import GenerationConfig
 from react_reproduction.datasets.base import BenchmarkExample
-from react_reproduction.llm.base import LLMProvider
+from react_reproduction.llm.base import (
+    LLMProvider,
+    generate_batch_with_stops,
+    truncate_at_stop_sequences,
+)
 from react_reproduction.prompts.hotpotqa import build_react_prompt
 from react_reproduction.tools.wikipedia import (
     ActionType,
@@ -116,11 +120,13 @@ class ReActAgent(BaseAgent):
                     strict=True,
                 )
             ]
-            model_outputs = self._llm.generate_batch(
+            model_outputs = generate_batch_with_stops(
+                self._llm,
                 prompts,
                 temperature=self._generation.temperature,
                 top_p=self._generation.top_p,
                 max_new_tokens=self._generation.max_new_tokens,
+                stop_sequences=(f"\nObservation {step_index}:",),
             )
             if len(model_outputs) != len(active_states):
                 raise RuntimeError(
@@ -133,6 +139,10 @@ class ReActAgent(BaseAgent):
                 force_finish_flags,
                 strict=True,
             ):
+                model_output = truncate_at_stop_sequences(
+                    model_output,
+                    (f"\nObservation {step_index}:",),
+                )
                 self._advance_state(
                     state,
                     model_output,
