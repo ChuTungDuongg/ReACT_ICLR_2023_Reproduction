@@ -1,0 +1,1283 @@
+{
+  "method_semantics": {
+    "cot-sc-react": "CoT-SC -> ReAct",
+    "react-cot-sc": "ReAct -> CoT-SC"
+  },
+  "runs": [
+    {
+      "average_steps": 1.0,
+      "average_tool_calls": 0.0,
+      "configuration": {
+        "batch_size": 32,
+        "code_version": "0.10.0",
+        "cot_sc_samples": null,
+        "cot_sc_temperature": null,
+        "cot_sc_threshold": null,
+        "dataset": "hotpotqa/hotpot_qa:distractor:validation",
+        "dataset_revision": null,
+        "dataset_split": null,
+        "dataset_subset": null,
+        "generation_max_new_tokens": 256,
+        "generation_temperature": 0.0,
+        "generation_top_p": 1.0,
+        "max_agent_steps": 7,
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "model_revision": null,
+        "prompt_version": null,
+        "react_best_effort_finalization": null,
+        "seed": 42
+      },
+      "correct": 92,
+      "exact_match": 0.184,
+      "f1": 0.2773786164387787,
+      "incorrect": 408,
+      "method": "standard",
+      "method_label": "Standard",
+      "num_examples": 500,
+      "precision": 0.29151839826839826,
+      "primary_metric": {
+        "name": "exact_match",
+        "value": 0.184
+      },
+      "recall": 0.2820833333333333,
+      "run_directory": "outputs/hotpotqa/standard/2026-08-24_133826",
+      "runtime_seconds": 25.064598439000292,
+      "task": "hotpotqa",
+      "termination_outcomes": {
+        "completed": {
+          "accuracy_or_exact_match": 0.184,
+          "correct": 92,
+          "f1": 0.2773786164387789,
+          "num_examples": 500
+        }
+      },
+      "termination_reasons": {
+        "completed": 500
+      }
+    },
+    {
+      "average_steps": 1.0,
+      "average_tool_calls": 0.0,
+      "configuration": {
+        "batch_size": 16,
+        "code_version": "0.10.0",
+        "cot_sc_samples": null,
+        "cot_sc_temperature": null,
+        "cot_sc_threshold": null,
+        "dataset": "hotpotqa/hotpot_qa:distractor:validation",
+        "dataset_revision": null,
+        "dataset_split": null,
+        "dataset_subset": null,
+        "generation_max_new_tokens": 256,
+        "generation_temperature": 0.0,
+        "generation_top_p": 1.0,
+        "max_agent_steps": 7,
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "model_revision": null,
+        "prompt_version": null,
+        "react_best_effort_finalization": null,
+        "seed": 42
+      },
+      "correct": 108,
+      "exact_match": 0.216,
+      "f1": 0.30627771366003564,
+      "incorrect": 392,
+      "method": "cot",
+      "method_label": "CoT",
+      "num_examples": 500,
+      "precision": 0.31492259672694456,
+      "primary_metric": {
+        "name": "exact_match",
+        "value": 0.216
+      },
+      "recall": 0.3231,
+      "run_directory": "outputs/hotpotqa/cot/2026-08-24_143705",
+      "runtime_seconds": 146.2976551640004,
+      "task": "hotpotqa",
+      "termination_outcomes": {
+        "completed": {
+          "accuracy_or_exact_match": 0.216,
+          "correct": 108,
+          "f1": 0.30627771366003587,
+          "num_examples": 500
+        }
+      },
+      "termination_reasons": {
+        "completed": 500
+      }
+    },
+    {
+      "average_steps": 21.0,
+      "average_tool_calls": 0.0,
+      "configuration": {
+        "batch_size": 16,
+        "code_version": "0.10.0",
+        "cot_sc_samples": 21,
+        "cot_sc_temperature": 0.7,
+        "cot_sc_threshold": null,
+        "dataset": "hotpotqa/hotpot_qa:distractor:validation",
+        "dataset_revision": null,
+        "dataset_split": null,
+        "dataset_subset": null,
+        "generation_max_new_tokens": 256,
+        "generation_temperature": 0.0,
+        "generation_top_p": 1.0,
+        "max_agent_steps": 7,
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "model_revision": null,
+        "prompt_version": null,
+        "react_best_effort_finalization": null,
+        "seed": 42
+      },
+      "correct": 118,
+      "exact_match": 0.236,
+      "f1": 0.3337204196674785,
+      "incorrect": 382,
+      "method": "cot-sc",
+      "method_label": "CoT-SC",
+      "num_examples": 500,
+      "precision": 0.3499366428892745,
+      "primary_metric": {
+        "name": "exact_match",
+        "value": 0.236
+      },
+      "recall": 0.3423880952380952,
+      "run_directory": "outputs/hotpotqa/cot-sc/2026-08-24_134140",
+      "runtime_seconds": 3249.766337651,
+      "task": "hotpotqa",
+      "termination_outcomes": {
+        "cot_sc_consensus": {
+          "accuracy_or_exact_match": 0.236,
+          "correct": 118,
+          "f1": 0.3337204196674787,
+          "num_examples": 500
+        }
+      },
+      "termination_reasons": {
+        "cot_sc_consensus": 500
+      },
+      "trajectory_analysis": {
+        "action_counts": {},
+        "action_only_outputs": 0,
+        "examples_with_invalid_action": 0,
+        "examples_with_repeated_search": 0,
+        "failed_search_observations": 0,
+        "invalid_action_steps": 0,
+        "lookup_no_match_steps": 0
+      }
+    },
+    {
+      "average_steps": 3.534,
+      "average_tool_calls": 2.456,
+      "configuration": {
+        "batch_size": 16,
+        "code_version": "0.10.0",
+        "cot_sc_samples": null,
+        "cot_sc_temperature": null,
+        "cot_sc_threshold": null,
+        "dataset": "hotpotqa/hotpot_qa:distractor:validation",
+        "dataset_revision": null,
+        "dataset_split": null,
+        "dataset_subset": null,
+        "generation_max_new_tokens": 256,
+        "generation_temperature": 0.0,
+        "generation_top_p": 1.0,
+        "max_agent_steps": 7,
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "model_revision": null,
+        "prompt_version": null,
+        "react_best_effort_finalization": null,
+        "seed": 42
+      },
+      "correct": 135,
+      "exact_match": 0.27,
+      "f1": 0.36429609939424185,
+      "incorrect": 365,
+      "method": "act",
+      "method_label": "Act",
+      "num_examples": 500,
+      "precision": 0.3877494616494616,
+      "primary_metric": {
+        "name": "exact_match",
+        "value": 0.27
+      },
+      "recall": 0.36885317460317457,
+      "run_directory": "outputs/hotpotqa/act/2026-08-23_163720",
+      "runtime_seconds": 1379.577602255,
+      "task": "hotpotqa",
+      "termination_outcomes": {
+        "completed": {
+          "accuracy_or_exact_match": 0.2878787878787879,
+          "correct": 133,
+          "f1": 0.3778508599917068,
+          "num_examples": 462
+        },
+        "completed_after_action_loop": {
+          "accuracy_or_exact_match": 0.125,
+          "correct": 1,
+          "f1": 0.175,
+          "num_examples": 8
+        },
+        "completed_at_step_limit": {
+          "accuracy_or_exact_match": 0.03333333333333333,
+          "correct": 1,
+          "f1": 0.20603174603174604,
+          "num_examples": 30
+        }
+      },
+      "termination_reasons": {
+        "completed": 462,
+        "completed_after_action_loop": 8,
+        "completed_at_step_limit": 30
+      },
+      "trajectory_analysis": {
+        "action_counts": {
+          "Finish": 500,
+          "Lookup": 79,
+          "Search": 1188
+        },
+        "action_only_outputs": 45,
+        "examples_with_invalid_action": 0,
+        "examples_with_repeated_search": 33,
+        "failed_search_observations": 0,
+        "invalid_action_steps": 0,
+        "lookup_no_match_steps": 43
+      }
+    },
+    {
+      "average_steps": 5.144,
+      "average_tool_calls": 4.352,
+      "configuration": {
+        "batch_size": null,
+        "code_version": "0.8.1",
+        "cot_sc_samples": null,
+        "cot_sc_temperature": null,
+        "cot_sc_threshold": null,
+        "dataset": "hotpotqa/hotpot_qa:distractor:validation",
+        "dataset_revision": null,
+        "dataset_split": null,
+        "dataset_subset": null,
+        "generation_max_new_tokens": 256,
+        "generation_temperature": 0.0,
+        "generation_top_p": 1.0,
+        "max_agent_steps": 7,
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "model_revision": null,
+        "prompt_version": null,
+        "react_best_effort_finalization": false,
+        "seed": 42
+      },
+      "correct": 129,
+      "exact_match": 0.258,
+      "f1": 0.34489118157827836,
+      "incorrect": 371,
+      "method": "react",
+      "method_label": "ReAct",
+      "num_examples": 500,
+      "precision": 0.357712921022532,
+      "primary_metric": {
+        "name": "exact_match",
+        "value": 0.258
+      },
+      "recall": 0.35470714285714283,
+      "run_directory": "outputs/hotpotqa/react/2026-08-23_082017",
+      "runtime_seconds": 11739.698916706,
+      "task": "hotpotqa",
+      "termination_outcomes": {
+        "action_loop": {
+          "accuracy_or_exact_match": 0.0,
+          "correct": 0,
+          "f1": 0.0,
+          "num_examples": 24
+        },
+        "completed": {
+          "accuracy_or_exact_match": 0.46236559139784944,
+          "correct": 129,
+          "f1": 0.6180845547997817,
+          "num_examples": 279
+        },
+        "max_steps_exceeded": {
+          "accuracy_or_exact_match": 0.0,
+          "correct": 0,
+          "f1": 0.0,
+          "num_examples": 197
+        }
+      },
+      "termination_reasons": {
+        "action_loop": 24,
+        "completed": 279,
+        "max_steps_exceeded": 197
+      },
+      "trajectory_analysis": {
+        "action_counts": {
+          "Finish": 279,
+          "Lookup": 480,
+          "Search": 1811
+        },
+        "action_only_outputs": 0,
+        "examples_with_invalid_action": 2,
+        "examples_with_repeated_search": 116,
+        "failed_search_observations": 0,
+        "invalid_action_steps": 2,
+        "lookup_no_match_steps": 346
+      }
+    },
+    {
+      "average_steps": 15.25,
+      "average_tool_calls": 4.332,
+      "configuration": {
+        "batch_size": 8,
+        "code_version": "0.9.0",
+        "cot_sc_samples": 21,
+        "cot_sc_temperature": 0.7,
+        "cot_sc_threshold": 10.5,
+        "dataset": "hotpotqa/hotpot_qa:distractor:validation",
+        "dataset_revision": null,
+        "dataset_split": null,
+        "dataset_subset": null,
+        "generation_max_new_tokens": 256,
+        "generation_temperature": 0.0,
+        "generation_top_p": 1.0,
+        "max_agent_steps": 7,
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "model_revision": null,
+        "prompt_version": null,
+        "react_best_effort_finalization": false,
+        "seed": 42
+      },
+      "correct": 157,
+      "exact_match": 0.314,
+      "execution_paths": {
+        "fallback_cot_sc": {
+          "accuracy_or_exact_match": 0.14583333333333334,
+          "average_steps": 27.7375,
+          "average_tool_calls": 6.0875,
+          "correct": 35,
+          "f1": 0.24310939741086796,
+          "num_examples": 240
+        },
+        "react_completed": {
+          "accuracy_or_exact_match": 0.46923076923076923,
+          "average_steps": 3.723076923076923,
+          "average_tool_calls": 2.7115384615384617,
+          "correct": 122,
+          "f1": 0.6128489032335187,
+          "num_examples": 260
+        }
+      },
+      "f1": 0.43537394043864636,
+      "incorrect": 343,
+      "method": "react-cot-sc",
+      "method_label": "ReAct -> CoT-SC",
+      "num_examples": 500,
+      "precision": 0.4537136563127275,
+      "primary_metric": {
+        "name": "exact_match",
+        "value": 0.314
+      },
+      "recall": 0.45012619047619046,
+      "run_directory": "outputs/hotpotqa/react-cot-sc/2026-08-23_132325",
+      "runtime_seconds": 7919.134545546,
+      "task": "hotpotqa",
+      "termination_outcomes": {
+        "fallback_cot_sc": {
+          "accuracy_or_exact_match": 0.14583333333333334,
+          "correct": 35,
+          "f1": 0.24310939741086796,
+          "num_examples": 240
+        },
+        "react_completed": {
+          "accuracy_or_exact_match": 0.46923076923076923,
+          "correct": 122,
+          "f1": 0.6128489032335187,
+          "num_examples": 260
+        }
+      },
+      "termination_reasons": {
+        "fallback_cot_sc": 240,
+        "react_completed": 260
+      },
+      "trajectory_analysis": {
+        "action_counts": {
+          "Finish": 260,
+          "Lookup": 498,
+          "Search": 1824
+        },
+        "action_only_outputs": 0,
+        "examples_with_invalid_action": 3,
+        "examples_with_repeated_search": 136,
+        "failed_search_observations": 0,
+        "invalid_action_steps": 3,
+        "lookup_no_match_steps": 371
+      }
+    },
+    {
+      "average_steps": 24.138,
+      "average_tool_calls": 2.678,
+      "configuration": {
+        "batch_size": 3,
+        "code_version": "0.9.0",
+        "cot_sc_samples": 21,
+        "cot_sc_temperature": 0.7,
+        "cot_sc_threshold": 10.5,
+        "dataset": "hotpotqa/hotpot_qa:distractor:validation",
+        "dataset_revision": null,
+        "dataset_split": null,
+        "dataset_subset": null,
+        "generation_max_new_tokens": 256,
+        "generation_temperature": 0.0,
+        "generation_top_p": 1.0,
+        "max_agent_steps": 7,
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "model_revision": null,
+        "prompt_version": null,
+        "react_best_effort_finalization": false,
+        "seed": 42
+      },
+      "correct": 146,
+      "exact_match": 0.292,
+      "execution_paths": {
+        "cot_sc_consensus": {
+          "accuracy_or_exact_match": 0.4722222222222222,
+          "average_steps": 21.0,
+          "average_tool_calls": 0.0,
+          "correct": 102,
+          "f1": 0.5761022927689595,
+          "num_examples": 216
+        },
+        "fallback_react_completed": {
+          "accuracy_or_exact_match": 0.34375,
+          "average_steps": 25.0390625,
+          "average_tool_calls": 3.015625,
+          "correct": 44,
+          "f1": 0.5272046073444099,
+          "num_examples": 128
+        },
+        "hybrid_failed": {
+          "accuracy_or_exact_match": 0.0,
+          "average_steps": 27.743589743589745,
+          "average_tool_calls": 6.108974358974359,
+          "correct": 0,
+          "f1": 0.0,
+          "num_examples": 156
+        }
+      },
+      "f1": 0.38384056995635946,
+      "incorrect": 354,
+      "method": "cot-sc-react",
+      "method_label": "CoT-SC -> ReAct",
+      "num_examples": 500,
+      "precision": 0.40549047619047623,
+      "primary_metric": {
+        "name": "exact_match",
+        "value": 0.292
+      },
+      "recall": 0.3887214285714286,
+      "run_directory": "outputs/hotpotqa/cot-sc-react/2026-08-23_092357",
+      "runtime_seconds": 14151.311128183,
+      "task": "hotpotqa",
+      "termination_outcomes": {
+        "cot_sc_consensus": {
+          "accuracy_or_exact_match": 0.4722222222222222,
+          "correct": 102,
+          "f1": 0.5761022927689595,
+          "num_examples": 216
+        },
+        "fallback_react_completed": {
+          "accuracy_or_exact_match": 0.34375,
+          "correct": 44,
+          "f1": 0.5272046073444099,
+          "num_examples": 128
+        },
+        "hybrid_failed": {
+          "accuracy_or_exact_match": 0.0,
+          "correct": 0,
+          "f1": 0.0,
+          "num_examples": 156
+        }
+      },
+      "termination_reasons": {
+        "cot_sc_consensus": 216,
+        "fallback_react_completed": 128,
+        "hybrid_failed": 156
+      },
+      "trajectory_analysis": {
+        "action_counts": {
+          "Finish": 128,
+          "Lookup": 307,
+          "Search": 1133
+        },
+        "action_only_outputs": 0,
+        "examples_with_invalid_action": 1,
+        "examples_with_repeated_search": 82,
+        "failed_search_observations": 0,
+        "invalid_action_steps": 1,
+        "lookup_no_match_steps": 229
+      }
+    },
+    {
+      "accuracy": 0.516,
+      "average_steps": 1.0,
+      "average_tool_calls": 0.0,
+      "configuration": {
+        "batch_size": 32,
+        "code_version": "0.11.0",
+        "cot_sc_samples": null,
+        "cot_sc_temperature": null,
+        "cot_sc_threshold": null,
+        "dataset": "ysymyth/ReAct:paper_dev:dev",
+        "dataset_revision": "6bdb3a1fd38b8188fc7ba4102969fe483df8fdc9",
+        "dataset_split": "dev",
+        "dataset_subset": "paper_dev",
+        "generation_max_new_tokens": 256,
+        "generation_temperature": 0.0,
+        "generation_top_p": 1.0,
+        "max_agent_steps": 5,
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "model_revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+        "prompt_version": "fever-appendix-c2-v1",
+        "react_best_effort_finalization": null,
+        "seed": 42
+      },
+      "confusion_matrix": {
+        "NOT ENOUGH INFO": {
+          "INVALID": 0,
+          "NOT ENOUGH INFO": 55,
+          "REFUTES": 97,
+          "SUPPORTS": 32
+        },
+        "REFUTES": {
+          "INVALID": 1,
+          "NOT ENOUGH INFO": 19,
+          "REFUTES": 106,
+          "SUPPORTS": 16
+        },
+        "SUPPORTS": {
+          "INVALID": 1,
+          "NOT ENOUGH INFO": 46,
+          "REFUTES": 30,
+          "SUPPORTS": 97
+        }
+      },
+      "correct": 258,
+      "gold_label_distribution": {
+        "NOT ENOUGH INFO": 184,
+        "REFUTES": 142,
+        "SUPPORTS": 174
+      },
+      "incorrect": 242,
+      "invalid_unparsed": 2,
+      "method": "standard",
+      "method_label": "Standard",
+      "num_examples": 500,
+      "per_class_accuracy": {
+        "NOT ENOUGH INFO": 0.29891304347826086,
+        "REFUTES": 0.7464788732394366,
+        "SUPPORTS": 0.5574712643678161
+      },
+      "predicted_label_distribution": {
+        "INVALID": 2,
+        "NOT ENOUGH INFO": 120,
+        "REFUTES": 233,
+        "SUPPORTS": 145
+      },
+      "primary_metric": {
+        "name": "accuracy",
+        "value": 0.516
+      },
+      "run_directory": "outputs/fever/standard/2026-09-17_185849",
+      "runtime_seconds": 78.77789488799954,
+      "task": "fever",
+      "termination_outcomes": {
+        "completed": {
+          "accuracy_or_exact_match": 0.5180722891566265,
+          "correct": 258,
+          "num_examples": 498
+        },
+        "invalid_label": {
+          "accuracy_or_exact_match": 0.0,
+          "correct": 0,
+          "num_examples": 2
+        }
+      },
+      "termination_reasons": {
+        "completed": 498,
+        "invalid_label": 2
+      }
+    },
+    {
+      "accuracy": 0.56,
+      "average_steps": 1.0,
+      "average_tool_calls": 0.0,
+      "configuration": {
+        "batch_size": 16,
+        "code_version": "0.11.0",
+        "cot_sc_samples": null,
+        "cot_sc_temperature": null,
+        "cot_sc_threshold": null,
+        "dataset": "ysymyth/ReAct:paper_dev:dev",
+        "dataset_revision": "6bdb3a1fd38b8188fc7ba4102969fe483df8fdc9",
+        "dataset_split": "dev",
+        "dataset_subset": "paper_dev",
+        "generation_max_new_tokens": 256,
+        "generation_temperature": 0.0,
+        "generation_top_p": 1.0,
+        "max_agent_steps": 5,
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "model_revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+        "prompt_version": "fever-appendix-c2-v1",
+        "react_best_effort_finalization": null,
+        "seed": 42
+      },
+      "confusion_matrix": {
+        "NOT ENOUGH INFO": {
+          "INVALID": 4,
+          "NOT ENOUGH INFO": 51,
+          "REFUTES": 87,
+          "SUPPORTS": 42
+        },
+        "REFUTES": {
+          "INVALID": 0,
+          "NOT ENOUGH INFO": 27,
+          "REFUTES": 97,
+          "SUPPORTS": 18
+        },
+        "SUPPORTS": {
+          "INVALID": 1,
+          "NOT ENOUGH INFO": 22,
+          "REFUTES": 19,
+          "SUPPORTS": 132
+        }
+      },
+      "correct": 280,
+      "gold_label_distribution": {
+        "NOT ENOUGH INFO": 184,
+        "REFUTES": 142,
+        "SUPPORTS": 174
+      },
+      "incorrect": 220,
+      "invalid_unparsed": 5,
+      "method": "cot",
+      "method_label": "CoT",
+      "num_examples": 500,
+      "per_class_accuracy": {
+        "NOT ENOUGH INFO": 0.27717391304347827,
+        "REFUTES": 0.6830985915492958,
+        "SUPPORTS": 0.7586206896551724
+      },
+      "predicted_label_distribution": {
+        "INVALID": 5,
+        "NOT ENOUGH INFO": 100,
+        "REFUTES": 203,
+        "SUPPORTS": 192
+      },
+      "primary_metric": {
+        "name": "accuracy",
+        "value": 0.56
+      },
+      "run_directory": "outputs/fever/cot/2026-09-17_190026",
+      "runtime_seconds": 175.97909973900005,
+      "task": "fever",
+      "termination_outcomes": {
+        "completed": {
+          "accuracy_or_exact_match": 0.5656565656565656,
+          "correct": 280,
+          "num_examples": 495
+        },
+        "invalid_label": {
+          "accuracy_or_exact_match": 0.0,
+          "correct": 0,
+          "num_examples": 5
+        }
+      },
+      "termination_reasons": {
+        "completed": 495,
+        "invalid_label": 5
+      }
+    },
+    {
+      "accuracy": 0.572,
+      "average_steps": 21.0,
+      "average_tool_calls": 0.0,
+      "configuration": {
+        "batch_size": 16,
+        "code_version": "0.11.0",
+        "cot_sc_samples": 21,
+        "cot_sc_temperature": 0.7,
+        "cot_sc_threshold": 10.5,
+        "dataset": "ysymyth/ReAct:paper_dev:dev",
+        "dataset_revision": "6bdb3a1fd38b8188fc7ba4102969fe483df8fdc9",
+        "dataset_split": "dev",
+        "dataset_subset": "paper_dev",
+        "generation_max_new_tokens": 256,
+        "generation_temperature": 0.0,
+        "generation_top_p": 1.0,
+        "max_agent_steps": 5,
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "model_revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+        "prompt_version": "fever-appendix-c2-v1",
+        "react_best_effort_finalization": null,
+        "seed": 42
+      },
+      "confusion_matrix": {
+        "NOT ENOUGH INFO": {
+          "INVALID": 0,
+          "NOT ENOUGH INFO": 52,
+          "REFUTES": 89,
+          "SUPPORTS": 43
+        },
+        "REFUTES": {
+          "INVALID": 0,
+          "NOT ENOUGH INFO": 25,
+          "REFUTES": 97,
+          "SUPPORTS": 20
+        },
+        "SUPPORTS": {
+          "INVALID": 0,
+          "NOT ENOUGH INFO": 23,
+          "REFUTES": 14,
+          "SUPPORTS": 137
+        }
+      },
+      "correct": 286,
+      "gold_label_distribution": {
+        "NOT ENOUGH INFO": 184,
+        "REFUTES": 142,
+        "SUPPORTS": 174
+      },
+      "incorrect": 214,
+      "invalid_unparsed": 0,
+      "method": "cot-sc",
+      "method_label": "CoT-SC",
+      "num_examples": 500,
+      "per_class_accuracy": {
+        "NOT ENOUGH INFO": 0.2826086956521739,
+        "REFUTES": 0.6830985915492958,
+        "SUPPORTS": 0.7873563218390804
+      },
+      "predicted_label_distribution": {
+        "NOT ENOUGH INFO": 100,
+        "REFUTES": 200,
+        "SUPPORTS": 200
+      },
+      "primary_metric": {
+        "name": "accuracy",
+        "value": 0.572
+      },
+      "run_directory": "outputs/fever/cot-sc/2026-09-17_190339",
+      "runtime_seconds": 3775.6989803399993,
+      "task": "fever",
+      "termination_outcomes": {
+        "cot_sc_majority": {
+          "accuracy_or_exact_match": 0.578838174273859,
+          "correct": 279,
+          "num_examples": 482
+        },
+        "cot_sc_plurality": {
+          "accuracy_or_exact_match": 0.3888888888888889,
+          "correct": 7,
+          "num_examples": 18
+        }
+      },
+      "termination_reasons": {
+        "cot_sc_majority": 482,
+        "cot_sc_plurality": 18
+      },
+      "trajectory_analysis": {
+        "action_counts": {},
+        "action_only_outputs": 0,
+        "examples_with_invalid_action": 0,
+        "examples_with_repeated_search": 0,
+        "failed_search_observations": 0,
+        "invalid_action_steps": 0,
+        "lookup_no_match_steps": 0
+      }
+    },
+    {
+      "accuracy": 0.542,
+      "average_steps": 2.806,
+      "average_tool_calls": 1.802,
+      "configuration": {
+        "batch_size": 16,
+        "code_version": "0.11.0",
+        "cot_sc_samples": null,
+        "cot_sc_temperature": null,
+        "cot_sc_threshold": null,
+        "dataset": "ysymyth/ReAct:paper_dev:dev",
+        "dataset_revision": "6bdb3a1fd38b8188fc7ba4102969fe483df8fdc9",
+        "dataset_split": "dev",
+        "dataset_subset": "paper_dev",
+        "generation_max_new_tokens": 256,
+        "generation_temperature": 0.0,
+        "generation_top_p": 1.0,
+        "max_agent_steps": 5,
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "model_revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+        "prompt_version": "fever-appendix-c2-v1",
+        "react_best_effort_finalization": null,
+        "seed": 42
+      },
+      "confusion_matrix": {
+        "NOT ENOUGH INFO": {
+          "INVALID": 14,
+          "NOT ENOUGH INFO": 75,
+          "REFUTES": 76,
+          "SUPPORTS": 19
+        },
+        "REFUTES": {
+          "INVALID": 9,
+          "NOT ENOUGH INFO": 24,
+          "REFUTES": 104,
+          "SUPPORTS": 5
+        },
+        "SUPPORTS": {
+          "INVALID": 16,
+          "NOT ENOUGH INFO": 52,
+          "REFUTES": 14,
+          "SUPPORTS": 92
+        }
+      },
+      "correct": 271,
+      "gold_label_distribution": {
+        "NOT ENOUGH INFO": 184,
+        "REFUTES": 142,
+        "SUPPORTS": 174
+      },
+      "incorrect": 229,
+      "invalid_unparsed": 39,
+      "method": "act",
+      "method_label": "Act",
+      "num_examples": 500,
+      "per_class_accuracy": {
+        "NOT ENOUGH INFO": 0.4076086956521739,
+        "REFUTES": 0.7323943661971831,
+        "SUPPORTS": 0.5287356321839081
+      },
+      "predicted_label_distribution": {
+        "INVALID": 39,
+        "NOT ENOUGH INFO": 151,
+        "REFUTES": 194,
+        "SUPPORTS": 116
+      },
+      "primary_metric": {
+        "name": "accuracy",
+        "value": 0.542
+      },
+      "run_directory": "outputs/fever/act/2026-09-17_200652",
+      "runtime_seconds": 1678.887006680001,
+      "task": "fever",
+      "termination_outcomes": {
+        "completed": {
+          "accuracy_or_exact_match": 0.6210268948655256,
+          "correct": 254,
+          "num_examples": 409
+        },
+        "completed_at_step_limit": {
+          "accuracy_or_exact_match": 0.3269230769230769,
+          "correct": 17,
+          "num_examples": 52
+        },
+        "finalization_failed": {
+          "accuracy_or_exact_match": 0.0,
+          "correct": 0,
+          "num_examples": 39
+        }
+      },
+      "termination_reasons": {
+        "completed": 409,
+        "completed_at_step_limit": 52,
+        "finalization_failed": 39
+      },
+      "trajectory_analysis": {
+        "action_counts": {
+          "Finish": 461,
+          "Lookup": 56,
+          "Search": 850
+        },
+        "action_only_outputs": 0,
+        "examples_with_invalid_action": 36,
+        "examples_with_repeated_search": 37,
+        "failed_search_observations": 435,
+        "invalid_action_steps": 36,
+        "lookup_no_match_steps": 4
+      }
+    },
+    {
+      "accuracy": 0.328,
+      "average_steps": 4.058,
+      "average_tool_calls": 3.432,
+      "configuration": {
+        "batch_size": 8,
+        "code_version": "0.11.0",
+        "cot_sc_samples": null,
+        "cot_sc_temperature": null,
+        "cot_sc_threshold": null,
+        "dataset": "ysymyth/ReAct:paper_dev:dev",
+        "dataset_revision": "6bdb3a1fd38b8188fc7ba4102969fe483df8fdc9",
+        "dataset_split": "dev",
+        "dataset_subset": "paper_dev",
+        "generation_max_new_tokens": 256,
+        "generation_temperature": 0.0,
+        "generation_top_p": 1.0,
+        "max_agent_steps": 5,
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "model_revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+        "prompt_version": "fever-appendix-c2-v1",
+        "react_best_effort_finalization": false,
+        "seed": 42
+      },
+      "confusion_matrix": {
+        "NOT ENOUGH INFO": {
+          "INVALID": 96,
+          "NOT ENOUGH INFO": 47,
+          "REFUTES": 35,
+          "SUPPORTS": 6
+        },
+        "REFUTES": {
+          "INVALID": 73,
+          "NOT ENOUGH INFO": 16,
+          "REFUTES": 51,
+          "SUPPORTS": 2
+        },
+        "SUPPORTS": {
+          "INVALID": 89,
+          "NOT ENOUGH INFO": 18,
+          "REFUTES": 1,
+          "SUPPORTS": 66
+        }
+      },
+      "correct": 164,
+      "gold_label_distribution": {
+        "NOT ENOUGH INFO": 184,
+        "REFUTES": 142,
+        "SUPPORTS": 174
+      },
+      "incorrect": 336,
+      "invalid_unparsed": 258,
+      "method": "react",
+      "method_label": "ReAct",
+      "num_examples": 500,
+      "per_class_accuracy": {
+        "NOT ENOUGH INFO": 0.2554347826086957,
+        "REFUTES": 0.3591549295774648,
+        "SUPPORTS": 0.3793103448275862
+      },
+      "predicted_label_distribution": {
+        "INVALID": 258,
+        "NOT ENOUGH INFO": 81,
+        "REFUTES": 87,
+        "SUPPORTS": 74
+      },
+      "primary_metric": {
+        "name": "accuracy",
+        "value": 0.328
+      },
+      "run_directory": "outputs/fever/react/2026-09-17_173812",
+      "runtime_seconds": 4765.072379254,
+      "task": "fever",
+      "termination_outcomes": {
+        "completed": {
+          "accuracy_or_exact_match": 0.6776859504132231,
+          "correct": 164,
+          "num_examples": 242
+        },
+        "max_steps_exceeded": {
+          "accuracy_or_exact_match": 0.0,
+          "correct": 0,
+          "num_examples": 243
+        },
+        "parsing_error": {
+          "accuracy_or_exact_match": 0.0,
+          "correct": 0,
+          "num_examples": 15
+        }
+      },
+      "termination_reasons": {
+        "completed": 242,
+        "max_steps_exceeded": 243,
+        "parsing_error": 15
+      },
+      "trajectory_analysis": {
+        "action_counts": {
+          "Finish": 242,
+          "Lookup": 11,
+          "Search": 1705
+        },
+        "action_only_outputs": 29,
+        "examples_with_invalid_action": 68,
+        "examples_with_repeated_search": 81,
+        "failed_search_observations": 1469,
+        "invalid_action_steps": 71,
+        "lookup_no_match_steps": 3
+      }
+    },
+    {
+      "accuracy": 0.616,
+      "average_steps": 15.064,
+      "average_tool_calls": 3.446,
+      "configuration": {
+        "batch_size": 8,
+        "code_version": "0.11.0",
+        "cot_sc_samples": 21,
+        "cot_sc_temperature": 0.7,
+        "cot_sc_threshold": 10.5,
+        "dataset": "ysymyth/ReAct:paper_dev:dev",
+        "dataset_revision": "6bdb3a1fd38b8188fc7ba4102969fe483df8fdc9",
+        "dataset_split": "dev",
+        "dataset_subset": "paper_dev",
+        "generation_max_new_tokens": 256,
+        "generation_temperature": 0.0,
+        "generation_top_p": 1.0,
+        "max_agent_steps": 5,
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "model_revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+        "prompt_version": "fever-appendix-c2-v1",
+        "react_best_effort_finalization": false,
+        "seed": 42
+      },
+      "confusion_matrix": {
+        "NOT ENOUGH INFO": {
+          "INVALID": 0,
+          "NOT ENOUGH INFO": 71,
+          "REFUTES": 77,
+          "SUPPORTS": 36
+        },
+        "REFUTES": {
+          "INVALID": 0,
+          "NOT ENOUGH INFO": 24,
+          "REFUTES": 100,
+          "SUPPORTS": 18
+        },
+        "SUPPORTS": {
+          "INVALID": 0,
+          "NOT ENOUGH INFO": 24,
+          "REFUTES": 13,
+          "SUPPORTS": 137
+        }
+      },
+      "correct": 308,
+      "execution_paths": {
+        "fallback_cot_sc": {
+          "accuracy_or_exact_match": 0.5534351145038168,
+          "average_steps": 26.0,
+          "average_tool_calls": 4.8893129770992365,
+          "correct": 145,
+          "invalid_unparsed": 0,
+          "num_examples": 262
+        },
+        "react_completed": {
+          "accuracy_or_exact_match": 0.6848739495798319,
+          "average_steps": 3.0252100840336134,
+          "average_tool_calls": 1.8571428571428572,
+          "correct": 163,
+          "invalid_unparsed": 0,
+          "num_examples": 238
+        }
+      },
+      "gold_label_distribution": {
+        "NOT ENOUGH INFO": 184,
+        "REFUTES": 142,
+        "SUPPORTS": 174
+      },
+      "incorrect": 192,
+      "invalid_unparsed": 0,
+      "method": "react-cot-sc",
+      "method_label": "ReAct -> CoT-SC",
+      "num_examples": 500,
+      "per_class_accuracy": {
+        "NOT ENOUGH INFO": 0.3858695652173913,
+        "REFUTES": 0.704225352112676,
+        "SUPPORTS": 0.7873563218390804
+      },
+      "predicted_label_distribution": {
+        "NOT ENOUGH INFO": 119,
+        "REFUTES": 190,
+        "SUPPORTS": 191
+      },
+      "primary_metric": {
+        "name": "accuracy",
+        "value": 0.616
+      },
+      "run_directory": "outputs/fever/react-cot-sc/2026-09-17_223327",
+      "runtime_seconds": 10257.201958366,
+      "task": "fever",
+      "termination_outcomes": {
+        "fallback_cot_sc": {
+          "accuracy_or_exact_match": 0.5534351145038168,
+          "correct": 145,
+          "num_examples": 262
+        },
+        "react_completed": {
+          "accuracy_or_exact_match": 0.6848739495798319,
+          "correct": 163,
+          "num_examples": 238
+        }
+      },
+      "termination_reasons": {
+        "fallback_cot_sc": 262,
+        "react_completed": 238
+      },
+      "trajectory_analysis": {
+        "action_counts": {
+          "Finish": 238,
+          "Lookup": 12,
+          "Search": 1711
+        },
+        "action_only_outputs": 25,
+        "examples_with_invalid_action": 66,
+        "examples_with_repeated_search": 78,
+        "failed_search_observations": 1477,
+        "invalid_action_steps": 69,
+        "lookup_no_match_steps": 3
+      }
+    },
+    {
+      "accuracy": 0.55,
+      "average_steps": 21.216,
+      "average_tool_calls": 0.19,
+      "configuration": {
+        "batch_size": 8,
+        "code_version": "0.11.0",
+        "cot_sc_samples": 21,
+        "cot_sc_temperature": 0.7,
+        "cot_sc_threshold": 10.5,
+        "dataset": "ysymyth/ReAct:paper_dev:dev",
+        "dataset_revision": "6bdb3a1fd38b8188fc7ba4102969fe483df8fdc9",
+        "dataset_split": "dev",
+        "dataset_subset": "paper_dev",
+        "generation_max_new_tokens": 256,
+        "generation_temperature": 0.0,
+        "generation_top_p": 1.0,
+        "max_agent_steps": 5,
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "model_revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+        "prompt_version": "fever-appendix-c2-v1",
+        "react_best_effort_finalization": false,
+        "seed": 42
+      },
+      "confusion_matrix": {
+        "NOT ENOUGH INFO": {
+          "INVALID": 6,
+          "NOT ENOUGH INFO": 49,
+          "REFUTES": 87,
+          "SUPPORTS": 42
+        },
+        "REFUTES": {
+          "INVALID": 7,
+          "NOT ENOUGH INFO": 23,
+          "REFUTES": 95,
+          "SUPPORTS": 17
+        },
+        "SUPPORTS": {
+          "INVALID": 2,
+          "NOT ENOUGH INFO": 21,
+          "REFUTES": 20,
+          "SUPPORTS": 131
+        }
+      },
+      "correct": 275,
+      "execution_paths": {
+        "cot_sc_consensus": {
+          "accuracy_or_exact_match": 0.5705263157894737,
+          "average_steps": 21.0,
+          "average_tool_calls": 0.0,
+          "correct": 271,
+          "invalid_unparsed": 0,
+          "num_examples": 475
+        },
+        "fallback_react_completed": {
+          "accuracy_or_exact_match": 0.4,
+          "average_steps": 24.3,
+          "average_tool_calls": 2.2,
+          "correct": 4,
+          "invalid_unparsed": 0,
+          "num_examples": 10
+        },
+        "hybrid_failed": {
+          "accuracy_or_exact_match": 0.0,
+          "average_steps": 26.0,
+          "average_tool_calls": 4.866666666666666,
+          "correct": 0,
+          "invalid_unparsed": 15,
+          "num_examples": 15
+        }
+      },
+      "gold_label_distribution": {
+        "NOT ENOUGH INFO": 184,
+        "REFUTES": 142,
+        "SUPPORTS": 174
+      },
+      "incorrect": 225,
+      "invalid_unparsed": 15,
+      "method": "cot-sc-react",
+      "method_label": "CoT-SC -> ReAct",
+      "num_examples": 500,
+      "per_class_accuracy": {
+        "NOT ENOUGH INFO": 0.266304347826087,
+        "REFUTES": 0.6690140845070423,
+        "SUPPORTS": 0.7528735632183908
+      },
+      "predicted_label_distribution": {
+        "INVALID": 15,
+        "NOT ENOUGH INFO": 93,
+        "REFUTES": 202,
+        "SUPPORTS": 190
+      },
+      "primary_metric": {
+        "name": "accuracy",
+        "value": 0.55
+      },
+      "run_directory": "outputs/fever/cot-sc-react/2026-09-17_203508",
+      "runtime_seconds": 7081.881236816,
+      "task": "fever",
+      "termination_outcomes": {
+        "cot_sc_consensus": {
+          "accuracy_or_exact_match": 0.5705263157894737,
+          "correct": 271,
+          "num_examples": 475
+        },
+        "fallback_react_completed": {
+          "accuracy_or_exact_match": 0.4,
+          "correct": 4,
+          "num_examples": 10
+        },
+        "hybrid_failed": {
+          "accuracy_or_exact_match": 0.0,
+          "correct": 0,
+          "num_examples": 15
+        }
+      },
+      "termination_reasons": {
+        "cot_sc_consensus": 475,
+        "fallback_react_completed": 10,
+        "hybrid_failed": 15
+      },
+      "trajectory_analysis": {
+        "action_counts": {
+          "Finish": 10,
+          "Lookup": 1,
+          "Search": 94
+        },
+        "action_only_outputs": 3,
+        "examples_with_invalid_action": 3,
+        "examples_with_repeated_search": 0,
+        "failed_search_observations": 85,
+        "invalid_action_steps": 3,
+        "lookup_no_match_steps": 0
+      }
+    }
+  ],
+  "selection_rule": "For each task/method, select completed compatible runs with matching config, metrics, prediction count, unique IDs, and a terminal Metrics log entry; prefer the largest run, then the newest timestamp.",
+  "validation": {
+    "fever": {
+      "all_seven_methods_present": true,
+      "same_example_order_across_methods": true,
+      "selected_example_count": 500
+    },
+    "hotpotqa": {
+      "all_seven_methods_present": true,
+      "same_example_order_across_methods": true,
+      "selected_example_count": 500
+    }
+  }
+}

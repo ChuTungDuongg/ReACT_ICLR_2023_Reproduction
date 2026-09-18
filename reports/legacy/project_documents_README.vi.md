@@ -5,9 +5,9 @@
 Thư mục này lưu tài liệu ổn định được track:
 
 ```text
-output/
-  react-reproduction-roadmap.md
-  pdf/react-reproduction-roadmap.pdf
+reports/legacy/
+  react-reproduction-roadmap-sprint6.md
+  react-reproduction-roadmap-sprint6.pdf
 ```
 
 Markdown là source of truth của roadmap. Tạo lại PDF bằng:

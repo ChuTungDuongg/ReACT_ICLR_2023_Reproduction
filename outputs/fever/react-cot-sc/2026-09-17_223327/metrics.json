@@ -1,0 +1,53 @@
+{
+  "accuracy": 0.616,
+  "average_steps": 15.064,
+  "average_tool_calls": 3.446,
+  "confusion_matrix": {
+    "NOT ENOUGH INFO": {
+      "INVALID": 0,
+      "NOT ENOUGH INFO": 71,
+      "REFUTES": 77,
+      "SUPPORTS": 36
+    },
+    "REFUTES": {
+      "INVALID": 0,
+      "NOT ENOUGH INFO": 24,
+      "REFUTES": 100,
+      "SUPPORTS": 18
+    },
+    "SUPPORTS": {
+      "INVALID": 0,
+      "NOT ENOUGH INFO": 24,
+      "REFUTES": 13,
+      "SUPPORTS": 137
+    }
+  },
+  "correct": 308,
+  "gold_label_distribution": {
+    "NOT ENOUGH INFO": 184,
+    "REFUTES": 142,
+    "SUPPORTS": 174
+  },
+  "incorrect": 192,
+  "invalid_unparsed": 0,
+  "per_class_accuracy": {
+    "NOT ENOUGH INFO": 0.3858695652173913,
+    "REFUTES": 0.704225352112676,
+    "SUPPORTS": 0.7873563218390804
+  },
+  "predicted_label_distribution": {
+    "NOT ENOUGH INFO": 119,
+    "REFUTES": 190,
+    "SUPPORTS": 191
+  },
+  "primary_metric": {
+    "name": "accuracy",
+    "value": 0.616
+  },
+  "runtime": 10257.201958366,
+  "termination_reasons": {
+    "fallback_cot_sc": 262,
+    "react_completed": 238
+  },
+  "total_examples": 500
+}

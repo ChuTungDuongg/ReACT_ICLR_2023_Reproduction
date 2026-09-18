@@ -2,7 +2,7 @@
 
 > Language: English | [Tieng Viet](README.vi.md)
 
-Generated runs are ignored by Git except for this README and `.gitkeep`:
+This directory contains raw machine-generated benchmark artifacts:
 
 ```text
 outputs/<task>/<method>/<run_id>/
@@ -21,5 +21,7 @@ CoT-SC/hybrid predictions expose vote and execution-path metadata; complete
 sample text remains in trajectories. Files are flushed incrementally for Colab
 diagnostics.
 
-Do not commit runs, model weights, datasets, caches, credentials, or temporary
-files. Stable documents belong in `output/`.
+The completed HotpotQA and FEVER benchmark trees are explicitly allowed by
+`.gitignore` so they can be versioned for reproducibility. Do not place model
+weights, datasets, caches, credentials, temporary files, or human-readable
+reports here. Stable documents and analyses belong in `reports/`.

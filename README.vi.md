@@ -5,13 +5,14 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Paper-ICLR%202023-6f42c1" alt="Paper ICLR 2023">
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10+">
-  <img src="https://img.shields.io/badge/Trạng_thái-Sprint%206-238636" alt="Sprint 6 hoàn tất">
-  <img src="https://img.shields.io/badge/Tests-146%20PASS-18A0AE" alt="146 tests PASS">
+  <img src="https://img.shields.io/badge/Trạng_thái-Full%20Study-238636" alt="Reproduction study hoàn tất">
+  <img src="https://img.shields.io/badge/Benchmarks-14%20Full%20Runs-D97706" alt="14 full benchmark runs">
+  <img src="https://img.shields.io/badge/Tests-169%20PASS-18A0AE" alt="169 tests PASS">
   <img src="https://img.shields.io/badge/Điểm_vào-main.py-102A43" alt="Chạy bằng main.py">
 </p>
 
 <p align="center">
-  <a href="output/pdf/react-reproduction-roadmap.pdf">📄 Roadmap PDF</a> •
+  <a href="reports/legacy/react-reproduction-roadmap-sprint6.pdf">📄 Roadmap Sprint 6</a> •
   <a href="#chạy-trên-google-colab">☁️ Google Colab</a> •
   <a href="#cách-hoạt-động">🧩 Cách hoạt động</a> •
   <a href="#cấu-trúc-repository">🗂️ Cấu trúc file</a> •
@@ -34,9 +35,9 @@ temperature 0.7. CLI mặc định chọn `Qwen/Qwen2.5-7B-Instruct`; vẫn có 
 
 ## ✅ Trạng thái hiện tại
 
-Repository đã hoàn tất **Sprint 0 đến Sprint 6**. HotpotQA và FEVER đều hỗ trợ
-đủ 7 phương pháp trong paper. ALFWorld, WebShop, sprint báo cáo nghiên cứu và
-interactive app chưa bắt đầu.
+Repository đã hoàn tất reproduction study cho HotpotQA và FEVER: đủ 7 phương
+pháp, mỗi run 500 examples, cùng summary, phân tích, figure và báo cáo học thuật.
+ALFWorld, WebShop và interactive app chưa bắt đầu.
 
 | Sprint | Nội dung | Trạng thái |
 |---:|---|---|
@@ -48,10 +49,12 @@ interactive app chưa bắt đầu.
 | Mở rộng | CoT-SC voting và hai thứ tự fallback ReAct/CoT-SC | ✅ Hoàn tất |
 | 5 | Benchmark 7 phương pháp HotpotQA | ✅ Hoàn tất |
 | 6 | Triển khai FEVER bám sát paper | ✅ Hoàn tất |
-| 7+ | Báo cáo nghiên cứu, UI và phần mở rộng | ⏸️ Chưa bắt đầu |
+| 7 | Trích xuất kết quả, phân tích và báo cáo học thuật | ✅ Hoàn tất |
+| 8+ | UI và phần mở rộng | ⏸️ Chưa bắt đầu |
 
 Roadmap, requirements và acceptance criteria chi tiết nằm trong
-[roadmap PDF](output/pdf/react-reproduction-roadmap.pdf).
+[roadmap Sprint 6 lịch sử](reports/legacy/react-reproduction-roadmap-sprint6.pdf).
+Kết quả đầy đủ và các file tái lập nằm trong [reports/README.md](reports/README.md).
 
 ## 🚀 Cài đặt nhanh
 
@@ -378,8 +381,8 @@ main.py
 ├── main.py                         # Điểm chạy duy nhất
 ├── requirements.txt                # Dependency runtime và test
 ├── configs/                        # Cấu hình mặc định có version control
-├── output/                         # Tài liệu ổn định, ví dụ roadmap PDF
-├── outputs/                        # Kết quả benchmark runtime, bị Git ignore
+├── reports/                        # Tài liệu ổn định, ví dụ roadmap PDF
+├── outputs/                        # Raw benchmark artifacts
 ├── src/react_reproduction/
 │   ├── agents/                     # Base agents, CoT-SC voting, hybrid policies
 │   ├── datasets/                   # BenchmarkExample và loader HotpotQA/FEVER
@@ -391,7 +394,7 @@ main.py
 │   ├── cli.py                      # Khai báo command và kết nối component
 │   ├── config.py                   # Đọc, kiểm tra YAML và biến môi trường
 │   └── logging_utils.py            # Live stdout UTF-8 và run.log
-└── tests/                           # 146 unit/integration-style tests
+└── tests/                           # 169 unit/integration-style tests
 ```
 
 README tiếng Việt của từng thư mục:
@@ -400,7 +403,7 @@ README tiếng Việt của từng thư mục:
 - [Giải thích configuration](configs/README.vi.md)
 - [Giải thích tests](tests/README.vi.md)
 - [Giải thích benchmark outputs](outputs/README.vi.md)
-- [Giải thích project documents](output/README.vi.md)
+- [Giải thích project documents](reports/README.md)
 
 ## 📦 Kết quả của mỗi lần chạy
 
@@ -452,7 +455,7 @@ python main.py --help
 python main.py doctor
 ```
 
-146 tests hiện tại kiểm tra:
+169 tests hiện tại kiểm tra:
 
 - CLI, cấu hình và `doctor`;
 - HotpotQA/FEVER loading, validation và sampling theo seed;
@@ -481,15 +484,18 @@ trợ, nếu không dùng FP16; CPU dùng FP32.
 
 ## ⚠️ Giới hạn
 
-- HotpotQA đã có đủ 7 method runs; kết quả FEVER 500 claims vẫn đang chờ chạy.
+- HotpotQA và FEVER đều có đủ 7 method runs với 500 examples mỗi run. Các run
+  HotpotQA thuộc nhiều code version lịch sử nên chưa phải controlled ablation
+  hoàn toàn đồng nhất.
 - Không thể kỳ vọng tái hiện chính xác số liệu PaLM-540B của paper gốc.
 - Wikipedia và kết quả search có thể thay đổi theo thời gian.
 - CoT-SC kiểu paper sinh 21 lượt cho mỗi example, nên hybrid tốn thời gian và
   GPU quota hơn ReAct thuần đáng kể.
 - Model 3B có thể chậm hoặc thiếu RAM/VRAM trên máy cá nhân; Colab GPU phù hợp
   hơn cho command mục tiêu.
-- Model đôi khi sinh sai format. Parser ghi nhận lỗi, lấy Action hợp lệ đầu tiên,
-  còn environment chặn loop và giới hạn số bước.
+- Model đôi khi sinh sai format. ReAct thử phục hồi action đúng một lần trong
+  cùng logical step; nếu vẫn lỗi thì ghi nhận parsing failure. Environment tiếp
+  tục chặn loop và giới hạn số bước.
 
 ## 📄 Trích dẫn paper
 

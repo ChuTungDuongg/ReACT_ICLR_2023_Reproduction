@@ -22,8 +22,8 @@ from reportlab.platypus import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "output" / "react-reproduction-roadmap.md"
-TARGET = ROOT / "output" / "pdf" / "react-reproduction-roadmap.pdf"
+SOURCE = ROOT / "reports" / "legacy" / "react-reproduction-roadmap-sprint6.md"
+TARGET = ROOT / "reports" / "legacy" / "react-reproduction-roadmap-sprint6.pdf"
 
 
 def main() -> None:

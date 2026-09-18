@@ -1,0 +1,15 @@
+task,method,method_label,num_examples,primary_metric_name,primary_metric_value,accuracy,exact_match,f1,invalid_unparsed,average_steps,average_tool_calls,runtime_seconds,termination_reasons,run_directory
+hotpotqa,standard,Standard,500,exact_match,0.184,,0.184,0.2773786164387787,,1.0,0.0,25.064598439000292,"{""completed"": 500}",outputs/hotpotqa/standard/2026-08-24_133826
+hotpotqa,cot,CoT,500,exact_match,0.216,,0.216,0.30627771366003564,,1.0,0.0,146.2976551640004,"{""completed"": 500}",outputs/hotpotqa/cot/2026-08-24_143705
+hotpotqa,cot-sc,CoT-SC,500,exact_match,0.236,,0.236,0.3337204196674785,,21.0,0.0,3249.766337651,"{""cot_sc_consensus"": 500}",outputs/hotpotqa/cot-sc/2026-08-24_134140
+hotpotqa,act,Act,500,exact_match,0.27,,0.27,0.36429609939424185,,3.534,2.456,1379.577602255,"{""completed"": 462, ""completed_after_action_loop"": 8, ""completed_at_step_limit"": 30}",outputs/hotpotqa/act/2026-08-23_163720
+hotpotqa,react,ReAct,500,exact_match,0.258,,0.258,0.34489118157827836,,5.144,4.352,11739.698916706,"{""action_loop"": 24, ""completed"": 279, ""max_steps_exceeded"": 197}",outputs/hotpotqa/react/2026-08-23_082017
+hotpotqa,react-cot-sc,ReAct -> CoT-SC,500,exact_match,0.314,,0.314,0.43537394043864636,,15.25,4.332,7919.134545546,"{""fallback_cot_sc"": 240, ""react_completed"": 260}",outputs/hotpotqa/react-cot-sc/2026-08-23_132325
+hotpotqa,cot-sc-react,CoT-SC -> ReAct,500,exact_match,0.292,,0.292,0.38384056995635946,,24.138,2.678,14151.311128183,"{""cot_sc_consensus"": 216, ""fallback_react_completed"": 128, ""hybrid_failed"": 156}",outputs/hotpotqa/cot-sc-react/2026-08-23_092357
+fever,standard,Standard,500,accuracy,0.516,0.516,,,2,1.0,0.0,78.77789488799954,"{""completed"": 498, ""invalid_label"": 2}",outputs/fever/standard/2026-09-17_185849
+fever,cot,CoT,500,accuracy,0.56,0.56,,,5,1.0,0.0,175.97909973900005,"{""completed"": 495, ""invalid_label"": 5}",outputs/fever/cot/2026-09-17_190026
+fever,cot-sc,CoT-SC,500,accuracy,0.572,0.572,,,0,21.0,0.0,3775.6989803399993,"{""cot_sc_majority"": 482, ""cot_sc_plurality"": 18}",outputs/fever/cot-sc/2026-09-17_190339
+fever,act,Act,500,accuracy,0.542,0.542,,,39,2.806,1.802,1678.887006680001,"{""completed"": 409, ""completed_at_step_limit"": 52, ""finalization_failed"": 39}",outputs/fever/act/2026-09-17_200652
+fever,react,ReAct,500,accuracy,0.328,0.328,,,258,4.058,3.432,4765.072379254,"{""completed"": 242, ""max_steps_exceeded"": 243, ""parsing_error"": 15}",outputs/fever/react/2026-09-17_173812
+fever,react-cot-sc,ReAct -> CoT-SC,500,accuracy,0.616,0.616,,,0,15.064,3.446,10257.201958366,"{""fallback_cot_sc"": 262, ""react_completed"": 238}",outputs/fever/react-cot-sc/2026-09-17_223327
+fever,cot-sc-react,CoT-SC -> ReAct,500,accuracy,0.55,0.55,,,15,21.216,0.19,7081.881236816,"{""cot_sc_consensus"": 475, ""fallback_react_completed"": 10, ""hybrid_failed"": 15}",outputs/fever/cot-sc-react/2026-09-17_203508

@@ -2,7 +2,7 @@
 
 > Ngôn ngữ: [English](README.md) | Tiếng Việt
 
-Run artifacts bị Git ignore, trừ README và `.gitkeep`:
+Thư mục này chứa các benchmark artifact thô do máy tạo:
 
 ```text
 outputs/<task>/<method>/<run_id>/
@@ -17,5 +17,7 @@ HotpotQA và FEVER dùng chung layout cho cả bảy method. Config lưu sample 
 prompt/code version, model revision nếu có, batch/generation settings, step
 budget và CoT-SC settings. FEVER dùng Accuracy cùng invalid counts, label
 distribution, per-class accuracy và confusion matrix. CoT-SC/hybrid lưu vote và
-execution path; full samples nằm trong trajectories. Không commit benchmark
-runs, weights, dataset, cache, credentials hoặc file tạm.
+execution path; full samples nằm trong trajectories. Hai cây benchmark hoàn tất
+`hotpotqa` và `fever` được `.gitignore` cho phép đưa vào Git để tái lập kết quả.
+Không đặt weights, dataset, cache, credentials, file tạm hoặc báo cáo đọc bởi
+con người ở đây; các báo cáo thuộc `reports/`.

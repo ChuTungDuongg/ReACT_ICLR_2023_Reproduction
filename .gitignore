@@ -53,5 +53,9 @@ mlruns/
 # Keep all HotpotQA benchmark outcomes, including run logs
 !outputs/hotpotqa/**
 
+# Keep all FEVER benchmark outcomes, including run logs
+!outputs/fever/
+!outputs/fever/**
+
 # Notebook residue (not part of this workflow)
 .ipynb_checkpoints/

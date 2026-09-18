@@ -5,13 +5,17 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Paper-ICLR%202023-6f42c1" alt="ICLR 2023 paper">
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB" alt="Python 3.10+">
-  <img src="https://img.shields.io/badge/Status-Sprint%206-238636" alt="Sprint 6 complete">
-  <img src="https://img.shields.io/badge/Tests-146%20Passing-18A0AE" alt="146 tests passing">
+  <img src="https://img.shields.io/badge/Status-Full%20Study-238636" alt="Full reproduction study complete">
+  <img src="https://img.shields.io/badge/Benchmarks-14%20Full%20Runs-D97706" alt="14 full benchmark runs">
+  <img src="https://img.shields.io/badge/Report-pdfLaTeX-6f42c1" alt="Report compiled with pdfLaTeX">
+  <img src="https://img.shields.io/badge/Tests-169%20Passing-18A0AE" alt="169 tests passing">
   <img src="https://img.shields.io/badge/Interface-main.py-102A43" alt="CLI first">
 </p>
 
 <p align="center">
-  <a href="output/pdf/react-reproduction-roadmap.pdf">📄 Roadmap</a> •
+  <a href="#full-benchmark-outcomes">✨ Results</a> •
+  <a href="reports/react_reproduction_report.pdf">📄 Paper</a> •
+  <a href="reports/legacy/react-reproduction-roadmap-sprint6.pdf">🧭 Sprint 6 roadmap</a> •
   <a href="#google-colab">☁️ Colab</a> •
   <a href="#cli">⌨️ CLI</a> •
   <a href="#repository-map">🗂️ File map</a> •
@@ -33,9 +37,11 @@ still select another compatible causal language model.
 
 ## ✅ Current status
 
-**Sprints 0 through 6 are complete.** HotpotQA and FEVER support all seven paper
-methods. ALFWorld, WebShop, the research-report sprint, and an interactive app
-have not started.
+**The HotpotQA + FEVER reproduction study is complete.** Both tasks have full
+500-example runs for all seven methods, deterministic result summaries,
+dataset-specific analyses, publication-style figures, and a combined academic
+report compiled with pdfLaTeX. ALFWorld, WebShop, and an interactive app remain
+outside the completed scope.
 
 | Sprint | Scope | Status |
 |---:|---|---|
@@ -47,10 +53,63 @@ have not started.
 | Extension | CoT-SC voting and both ReAct/CoT-SC fallback orders | ✅ Complete |
 | 5 | HotpotQA seven-method benchmark | ✅ Complete |
 | 6 | Paper-faithful FEVER implementation | ✅ Complete |
-| 7+ | Research report, UI, optional extensions | ⏸️ Not started |
+| 7 | Result extraction, failure analysis, figures, academic report | ✅ Complete |
+| 8+ | UI and optional extensions | ⏸️ Not started |
 
 The full requirements and sprint-by-sprint acceptance criteria are in the
-[roadmap PDF](output/pdf/react-reproduction-roadmap.pdf).
+[historical Sprint 6 roadmap](reports/legacy/react-reproduction-roadmap-sprint6.pdf).
+
+<a id="full-benchmark-outcomes"></a>
+
+## ✨ Full benchmark outcomes
+
+> 🔬 **14 full runs · 7 methods · 500 examples per method and task · seed 42**
+
+The table below is generated from the completed artifacts in `outputs/hotpotqa/`
+and `outputs/fever/`. HotpotQA uses answer Exact Match (EM) as its primary
+metric; FEVER uses three-label accuracy. Values are percentages.
+
+| Method | HotpotQA EM | HotpotQA F1 | FEVER accuracy | FEVER invalid |
+|---|---:|---:|---:|---:|
+| Standard | 18.4 | 27.74 | 51.6 | 2 |
+| CoT | 21.6 | 30.63 | 56.0 | 5 |
+| CoT-SC | 23.6 | 33.37 | 57.2 | 0 |
+| Act | 27.0 | 36.43 | 54.2 | 39 |
+| ReAct | 25.8 | 34.49 | 32.8 | 258 |
+| **ReAct → CoT-SC** | **31.4** | **43.54** | **61.6** | **0** |
+| CoT-SC → ReAct | 29.2 | 38.38 | 55.0 | 15 |
+
+### 💡 What the outcomes show
+
+- 🏆 **ReAct → CoT-SC is the strongest aggregate method on both tasks.** It
+  reaches 31.4 EM / 43.54 F1 on HotpotQA and 61.6 accuracy on FEVER.
+- 🧭 **Completed ReAct paths are much stronger than the headline FEVER score.**
+  Standalone ReAct completes 242/500 claims and is correct on 164 of them
+  (67.8%), but 243 max-step exits and 15 terminal parsing errors reduce overall
+  accuracy to 32.8%.
+- 🔎 **Retrieval quality, not automatic suggestion handling, is the main FEVER
+  bottleneck.** ReAct records 1,469 failed-search observations from 1,705 Search
+  actions; exact article suggestions remain observations until the model chooses
+  to follow them.
+- 🗳️ **Self-consistency trades compute for stability.** CoT-SC uses 21 samples
+  at temperature 0.7 and produces zero invalid FEVER labels.
+- ⚖️ **Hybrid direction matters.** ReAct → CoT-SC fills failed interaction paths
+  with a closed-book vote, while CoT-SC → ReAct sends only its low-confidence,
+  unusually difficult tail to the agent.
+
+### 📚 Read and reproduce
+
+- [Combined academic report (PDF)](reports/react_reproduction_report.pdf)
+- [LaTeX source](reports/react_reproduction_report.tex)
+- [HotpotQA report](reports/hotpotqa_report.md)
+- [FEVER report](reports/fever_report.md)
+- [Machine-readable JSON](reports/results_summary.json) ·
+  [CSV](reports/results_summary.csv)
+- [Selected-run map and regeneration commands](reports/README.md)
+
+These are descriptive results for the stored seeded samples. No statistical
+significance claim is made, and the original PaLM-540B values are not treated
+as directly model-controlled comparisons.
 
 ## 🚀 Quick start
 
@@ -331,9 +390,10 @@ main.py
 ├── requirements.txt                # Runtime and test dependencies
 ├── configs/
 │   └── default.yaml                # Versioned experiment defaults
-├── output/
-│   └── pdf/                        # Stable human-facing roadmap PDF
-├── outputs/                        # Ignored runtime benchmark artifacts
+├── reports/                        # Reports, summaries, figures, LaTeX, PDFs
+│   ├── figures/                    # Programmatically generated vector plots
+│   └── legacy/                     # Superseded reports and Sprint 6 roadmap
+├── outputs/                        # Raw benchmark artifacts
 ├── src/react_reproduction/
 │   ├── agents/                     # Base agents, CoT-SC voting, hybrid policies
 │   ├── datasets/                   # Shared example + HotpotQA/FEVER loaders
@@ -345,7 +405,7 @@ main.py
 │   ├── cli.py                      # Argument parsing and dependency wiring
 │   ├── config.py                   # Typed YAML/environment configuration
 │   └── logging_utils.py            # UTF-8 live stdout + run.log
-└── tests/                           # 146 deterministic tests
+└── tests/                           # 169 deterministic tests
 ```
 
 Each first-level directory has its own README:
@@ -354,7 +414,7 @@ Each first-level directory has its own README:
 - [Configuration guide](configs/README.md)
 - [Test guide](tests/README.md)
 - [Runtime output guide](outputs/README.md)
-- [Project document guide](output/README.md)
+- [Project document guide](reports/README.md)
 
 ## 📦 Run artifacts
 
@@ -376,7 +436,7 @@ labels (`cot_sc` or `react`), model output, Thought, canonical Action, and actua
 environment Observation. Hybrid `predictions.jsonl` records also include vote
 counts, confidence, selected path, and whether fallback was used.
 
-## 📊 Verified development smoke result
+## 🧪 Historical development smoke result
 
 This is a small pipeline check, **not a paper-quality benchmark result** and not
 evidence about larger Qwen models. No result is fabricated.
@@ -400,7 +460,7 @@ python main.py --help
 python main.py doctor
 ```
 
-The 146-test suite is offline/model-free and covers configuration/CLI smoke,
+The 169-test suite is offline/model-free and covers configuration/CLI smoke,
 seeded HotpotQA/FEVER loading, both evaluators, Hugging Face agent wiring,
 six-example paper prompt packs, numbered-label parsing, Standard/CoT parsing,
 Wikipedia Search/Lookup/Finish, ambiguity, repeated
@@ -422,8 +482,9 @@ FP32. `bitsandbytes` is intentionally not a required dependency.
 
 ## ⚠️ Limitations
 
-- HotpotQA has seven completed method runs; full 500-claim FEVER results are
-  still pending.
+- HotpotQA and FEVER each have seven completed 500-example method runs. The
+  HotpotQA runs span historical code versions 0.8.1, 0.9.0, and 0.10.0, so that
+  task is not a perfectly controlled cross-method ablation.
 - The original PaLM-540B model, prompts, serving stack, and historical
   Wikipedia state are unavailable, so exact numerical replication is not
   expected.
@@ -433,8 +494,9 @@ FP32. `bitsandbytes` is intentionally not a required dependency.
   can cost substantially more time and GPU quota than plain ReAct.
 - A 3B model may exceed some local machines; Colab GPU memory and runtime tier
   determine feasible speed. Use a smaller model only for pipeline debugging.
-- Generated text can violate the action grammar. The parser takes the first
-  valid action, records parsing failures, and the environment guards loops and
+- Generated text can violate the action grammar. ReAct makes at most one
+  action-only recovery call in the same logical step, then records a parsing
+  failure if recovery also fails; the environment still guards loops and
   maximum steps.
 
 ## 📄 Citation

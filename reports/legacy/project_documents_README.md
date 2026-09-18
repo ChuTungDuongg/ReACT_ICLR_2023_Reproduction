@@ -5,9 +5,9 @@
 This directory contains stable, tracked documentation:
 
 ```text
-output/
-  react-reproduction-roadmap.md
-  pdf/react-reproduction-roadmap.pdf
+reports/legacy/
+  react-reproduction-roadmap-sprint6.md
+  react-reproduction-roadmap-sprint6.pdf
 ```
 
 The Markdown file is the roadmap source of truth. Regenerate the PDF with:
